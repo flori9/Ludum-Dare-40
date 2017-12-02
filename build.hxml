@@ -1,0 +1,17 @@
+# Uncomment when pixi is not installed
+# -cmd haxelib install pixijs || true
+
+# Debug mode:
+-debug
+
+# Libs:
+-lib pixijs
+-dce full
+
+# Options:
+-D js-flatten
+
+# The main game:
+-js game/js/game_js.js
+-D mainGame
+-main Main
