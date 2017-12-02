@@ -1330,6 +1330,25 @@ common_Direction.Up.__enum__ = common_Direction;
 common_Direction.Down = ["Down",3];
 common_Direction.Down.toString = $estr;
 common_Direction.Down.__enum__ = common_Direction;
+var common_Random = function() { };
+common_Random.__name__ = true;
+common_Random.getInt = function(val0,val1) {
+	var min = 0;
+	var max = 2147483647;
+	if(val0 != null && val1 != null) {
+		min = val0;
+		max = val1;
+	} else if(val0 != null) {
+		max = val0;
+	}
+	return Math.floor(Math.random() * (max - min)) + min;
+};
+common_Random.fromArray = function(arr) {
+	if(arr.length == 0) {
+		throw new js__$Boot_HaxeError("You can't get a random item from an empty array!");
+	}
+	return arr[common_Random.getInt(arr.length)];
+};
 var de_polygonal_ds_Hashable = function() { };
 de_polygonal_ds_Hashable.__name__ = true;
 var de_polygonal_ds_Collection = function() { };
@@ -2175,6 +2194,7 @@ worldElements_Wall.prototype = $extend(worldElements_WorldElement.prototype,{
 	,__class__: worldElements_Wall
 });
 var worldElements_creatures_Creature = function(world,position) {
+	this.wanderTo = null;
 	this.aggresiveToPlayer = false;
 	this.followTimeWithoutSee = 3;
 	this.lastSeenCreature = new haxe_ds_ObjectMap();
@@ -2532,6 +2552,34 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 				creature.attack(nearestTarget);
 			} else {
 				this.moveInDirection(world,creature,nearestTargetInfo.inDirection);
+			}
+		} else {
+			if(creature.wanderTo == null) {
+				var wanderToOptions = world.pathfinder.find(creature.position,function(p) {
+					return world.noBlockingElementsAt(p);
+				},true);
+				if(wanderToOptions.length > 0) {
+					creature.wanderTo = common_Random.fromArray(wanderToOptions).point;
+				}
+			}
+			console.log(creature.wanderTo);
+			if(creature.wanderTo != null) {
+				var wanderInfo = world.pathfinder.find(creature.position,function(p1) {
+					var otherPoint = creature.wanderTo;
+					if(p1.x == otherPoint.x) {
+						return p1.y == otherPoint.y;
+					} else {
+						return false;
+					}
+				},false);
+				if(wanderInfo.length > 0) {
+					this.moveInDirection(world,creature,wanderInfo[0].inDirection);
+					if(creature.position == creature.wanderTo) {
+						creature.wanderTo = null;
+					}
+				} else {
+					creature.wanderTo = null;
+				}
 			}
 		}
 	}

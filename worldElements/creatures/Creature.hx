@@ -35,6 +35,7 @@ class Creature extends WorldElement {
      *  Whether we're always aggresive towards the player
      */
     public var aggresiveToPlayer = false;
+    public var wanderTo:Point = null;
 
     public override function init() {
         movement = new BasicMovement();

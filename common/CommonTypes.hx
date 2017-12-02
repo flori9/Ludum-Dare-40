@@ -73,6 +73,9 @@ class Point {
     public inline function subtract(otherPoint:Point) {
         return new Point(x - otherPoint.x, y - otherPoint.y);
     }
+
+    public inline function equals(otherPoint:Point)
+        return x == otherPoint.x && y == otherPoint.y;
 }
 
 class FPoint {

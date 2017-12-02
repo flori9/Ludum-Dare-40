@@ -36,6 +36,21 @@ class BasicMovement extends Movement {
                 creature.attack(nearestTarget);
             else
                 moveInDirection(world, creature, nearestTargetInfo.inDirection);
+        } else {
+            if (creature.wanderTo == null) {
+                var wanderToOptions = world.pathfinder.find(creature.position, function(p) return world.noBlockingElementsAt(p), true);
+                if (wanderToOptions.length > 0)
+                    creature.wanderTo = common.Random.fromArray(wanderToOptions).point;
+            }
+            
+            if (creature.wanderTo != null) {
+                var wanderInfo = world.pathfinder.find(creature.position, function(p) return p.equals(creature.wanderTo), false);
+                if (wanderInfo.length > 0) {
+                    moveInDirection(world, creature, wanderInfo[0].inDirection);
+                    if (creature.position == creature.wanderTo)
+                        creature.wanderTo = null;
+                } else creature.wanderTo = null;
+            }
         }
     }
 }
