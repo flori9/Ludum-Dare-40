@@ -13,6 +13,7 @@ enum Color {
     Purple;
     Yellow;
     DarkGray;
+    LightGray;
 }
 
 class Drawer {
@@ -30,6 +31,8 @@ class Drawer {
 
     static inline var leftPadding = 0;
     static inline var topRemove = 5;
+
+    static inline var notVisibleAlpha = 0.5;
 
     var screenX:Int;
     var screenY:Int;
@@ -88,11 +91,16 @@ class Drawer {
         if (text != "")
             col = colorToInt(DarkGray);
 
-        for (i in 0..."Examine:".length)
-            setBackground(i, yy, col);
-
+        setMultiBackground(0, yy, "Examine:".length, col);
+        setMultiBackground(0, yy == mouseHelpY ? mouseHelpY + 1 : mouseHelpY, "Examine:".length, 0x000000);
+        
         if (text != "")
             drawText(0, yy, "Examine: " + text);
+    }
+
+    public function setMultiBackground(x, y, width, col) {
+        for (i in x...x + width)
+            setBackground(i, y, col);
     }
 
     public function setWorldView(screenX, screenY, worldX, worldY, width, height) {
@@ -104,31 +112,32 @@ class Drawer {
         this.worldHeight = height;
     }
 
-    public function setWorldCharacter(x, y, character, color = 0xffffff) {
+    public function setWorldCharacter(x, y, character, color = 0xffffff, notInView = false) {
         if (x >= worldX && y >= worldY && x < worldX + worldWidth && y < worldY + worldHeight) {
-            setCharacter(x - worldX + screenX, y - worldY + screenY, character, color);
+            setCharacter(x - worldX + screenX, y - worldY + screenY, character, color, notInView ? notVisibleAlpha : 1);
         }
     }
 
-    public function setWorldWall(x, y, color = 0xffffff) {
+    public function setWorldWall(x, y, color = 0xffffff, notInView = false) {
         if (x >= worldX && y >= worldY && x < worldX + worldWidth && y < worldY + worldHeight) {
-            setBackground(x - worldX + screenX, y - worldY + screenY, color);
+            setBackground(x - worldX + screenX, y - worldY + screenY, color, notInView ? notVisibleAlpha : 1);
         }
     }
     
-    public function setCharacter(x, y, character, color = 0xffffff) {
+    public function setCharacter(x, y, character, color = 0xffffff, alpha = 1.0) {
         if (x < 0 || y < 0 || x >= width || y >= height)
             return;
 
         bitmaps[y][x].text = character;
         bitmaps[y][x].tint = color;
+        bitmaps[y][x].alpha = alpha;
     }
     
-    public function setBackground(x, y, color = 0xffffff) {
+    public function setBackground(x, y, color = 0xffffff, alpha = 1.0) {
         if (x < 0 || y < 0 || x >= width || y >= height)
             return;
 
-        wallGraphics.beginFill(color);
+        wallGraphics.beginFill(color, alpha);
         wallGraphics.drawRect(x * singleWidth + leftPadding, y * singleHeight, singleWidth, singleHeight);
         wallGraphics.endFill();
     }
@@ -210,6 +219,7 @@ class Drawer {
             case LightBlue: 0x42c5f4;
             case Purple: 0x8a3fc6;
             case DarkGray: 0x404040;
+            case LightGray: 0xb0b0b0;
         }
     }
 }

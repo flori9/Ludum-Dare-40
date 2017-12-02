@@ -3,6 +3,15 @@ package worldElements;
 class WorldElement {
     public var isBlocking(get, never):Bool;
     function get_isBlocking() return false;
+    public var isViewBlocking(get, never):Bool;
+    function get_isViewBlocking() return false;
+    public var isStatic(get, never):Bool;
+    function get_isStatic() return false;
+    /** Whether the object is easier visible, like a wall
+     *  This means it's visible when any adjecent empty square is visible.
+     */
+    public var isEasierVisible(get, never):Bool;
+    function get_isEasierVisible() return false;
     public var position(default, set):Point;
     function set_position(newPosition:Point) {
         if (position != null)
@@ -15,6 +24,13 @@ class WorldElement {
     public var world:World;
     var character:String;
     var color:Int;
+    /** Whether the player has seen this */
+    public var seenByPlayer:Bool = false;
+
+    /**
+     *  Whether the player can see this, either gray or not
+     */
+    public var isCurrentlyVisible:Bool = false;
 
     public function new(world:World, position:Point) {
         this.world = world;
@@ -33,12 +49,16 @@ class WorldElement {
 
     }
 
+    public function postUpdate() {
+        
+    }
+
     public function update(isExtra = false) {
 
     }
 
-    public function draw(drawer:Drawer) {
-        drawer.setWorldCharacter(position.x, position.y, character, color);
+    public function draw(drawer:Drawer, notInView:Bool) {
+        drawer.setWorldCharacter(position.x, position.y, character, color, notInView);
     }
 
     public function getInfo():String {

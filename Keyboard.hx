@@ -11,9 +11,15 @@ class Keyboard {
     public static inline var arrowDown = 40;
     public static inline var space = 32;
     public static inline var enter = 13;
+    public static inline var escape = 27;
+    public static inline var backspace = 8;
 
     public function anyConfirm() {
-        return down[space] || down[enter];
+        return pressed[space] || pressed[enter];
+    }
+
+    public function anyBack() {
+        return pressed[escape] || pressed[backspace];
     }
 
     public function new() {
@@ -51,5 +57,21 @@ class Keyboard {
         if (code >= 97 && code <= 122)
             code -= 97 - 65;
         return code;
+    }
+
+    public function leftKey() {
+        return pressed[Keyboard.arrowLeft] || pressed[Keyboard.getLetterCode('A')];
+    }
+
+    public function rightKey() {
+        return pressed[Keyboard.arrowRight] || pressed[Keyboard.getLetterCode('D')];
+    }
+
+    public function upKey() {
+        return pressed[Keyboard.arrowUp] || pressed[Keyboard.getLetterCode('W')];
+    }
+
+    public function downKey() {
+        return pressed[Keyboard.arrowDown] || pressed[Keyboard.getLetterCode('S')];
     }
 }

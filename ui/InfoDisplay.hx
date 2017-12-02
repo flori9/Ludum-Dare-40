@@ -1,13 +1,16 @@
 package ui;
 
 class InfoDisplay extends Focusable {
-    override function get_showsWorld() return true;
+    override function get_showsWorld() return innerFocusable.showsWorld;
 
     var info = "";
     var currentLine = 0;
     var currentLines:Array<String>;
+    var innerFocusable:Focusable;
 
-    public function new(keyboard:Keyboard, world:World, game:Game) {
+    public function new(keyboard:Keyboard, world:World, game:Game, innerFocusable:Focusable) {
+        this.innerFocusable = innerFocusable;
+
         super(keyboard, world, game);
     }
 
@@ -50,7 +53,7 @@ class InfoDisplay extends Focusable {
             drawCurrentLines(game.drawer);
 
             if (currentLine >= currentLines.length - 2)
-                game.nextFocus();
+                game.focus(innerFocusable);
         }
     }
 

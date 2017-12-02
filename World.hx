@@ -38,6 +38,12 @@ class World {
         elements.push(new Wall(this, new Point(3, 0)));
         elements.push(new Wall(this, new Point(2, 1)));
         elements.push(new Wall(this, new Point(2, 2)));
+        elements.push(new Wall(this, new Point(4, 1)));
+        elements.push(new Wall(this, new Point(3, 2)));
+        elements.push(new Wall(this, new Point(4, 2)));
+        elements.push(new Wall(this, new Point(5, 2)));
+        elements.push(new Wall(this, new Point(6, 1)));
+        elements.push(new Wall(this, new Point(3, 1)));
         elements.push(new worldElements.creatures.Rat(this, new Point(5, 2)));
     }
 
@@ -97,6 +103,12 @@ class World {
 
         removeElementsWhereNeeded();
 
+        for (element in elements) {
+            element.postUpdate();
+        }
+
+        removeElementsWhereNeeded();
+
         draw();
     }
 
@@ -126,7 +138,54 @@ class World {
     public function draw() {
         drawer.setWorldView(screenX, screenY, viewX, viewY, displayWidth, displayHeight);
         for (element in elements) {
-            element.draw(drawer);
+            element.isCurrentlyVisible = false;
+
+            if (pathfinder.isVisible(player.controllingBody.position, element.position, true)) {
+                element.draw(drawer, false);
+                element.seenByPlayer = true;
+                element.isCurrentlyVisible = true;
+            } else {
+                var nowSeen = false;
+                if (element.isEasierVisible) {
+                    var anyIndirectlyVisible = false;
+                    forEachDirectionFromPoint(element.position, function(p) {
+                        if (pathfinder.isVisible(player.controllingBody.position, p, true) && noBlockingElementsAt(p))
+                            anyIndirectlyVisible = true;
+                    });
+
+                    if (anyIndirectlyVisible) {
+                        nowSeen = true;
+                        element.isCurrentlyVisible = true;
+                        element.draw(drawer, false);
+                        element.seenByPlayer = true;
+                    }
+                }
+                if (! nowSeen && element.seenByPlayer) {
+                    element.draw(drawer, true);
+                    element.isCurrentlyVisible = true;
+                }
+            }
+        }
+
+        //If you see four view blockers around something, and that is a wall, show it as a wall too
+        for (element in elements) {
+            if (Std.is(element, Wall)) {
+                var wall:Wall = cast element;
+                if (! wall.seenByPlayer) {
+                    var allAroundSeen = true;
+                    forEachDirectionFromPoint(wall.position, function (p) {
+                        if (noBlockingElementsAt(p) || elementsAtPosition(p).any(function (elem) return elem.isViewBlocking && !elem.seenByPlayer)) {
+                            allAroundSeen = false;
+                        }
+                    });
+
+                    if (allAroundSeen) {
+                        wall.seenByPlayer = true;
+                        wall.draw(drawer, true);
+                        wall.isCurrentlyVisible = true;
+                    }
+                }
+            }
         }
     }
 
@@ -155,12 +214,34 @@ class World {
             null;
     }
 
+    public function forEachDirectionFromPoint(position:Point, functionToExecute:Point->Void) {
+        var left = new Point(position.x - 1, position.y);
+        if (isPositionInWorld(left))
+            functionToExecute(left);
+
+        var right = new Point(position.x + 1, position.y);
+        if (isPositionInWorld(right))
+            functionToExecute(right);
+        
+        var up = new Point(position.x, position.y - 1);
+        if (isPositionInWorld(up))
+            functionToExecute(up);
+
+        var down = new Point(position.x, position.y + 1);
+        if (isPositionInWorld(down))
+            functionToExecute(down);
+    }
+
     public function isPositionInWorld(position:Point) {
         return position.x >= 0 && position.y >= 0 && position.x < width && position.y < height;
     }
 
     public function elementsAtPosition(position:Point) {
         return elementsByPosition[position.x][position.y];
+    }
+
+    public function noBlockingElementsAt(position:Point, viewBlockingOnly = true) {
+        return ! elementsAtPosition(position).any(function (elem) return viewBlockingOnly ? elem.isViewBlocking : elem.isBlocking);
     }
 
     public function toWorldPoint(point:Point) {
@@ -178,9 +259,11 @@ class World {
     public function getQuickExamine(position:Point) {
         var help = "";
         for (element in elementsAtPosition(position)) {
-            if (help != "") help += "\n";
+            if (element.isCurrentlyVisible) {
+                if (help != "") help += "\n";
 
-            help += element.getInfo();
+                help += element.getInfo();
+            }
         }
         
         return help;

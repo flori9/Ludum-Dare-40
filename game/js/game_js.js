@@ -7,7 +7,7 @@ function $extend(from, fields) {
 	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
 	return proto;
 }
-var Color = { __ename__ : true, __constructs__ : ["Red","Green","Blue","Black","White","Gray","LightBlue","Purple","Yellow","DarkGray"] };
+var Color = { __ename__ : true, __constructs__ : ["Red","Green","Blue","Black","White","Gray","LightBlue","Purple","Yellow","DarkGray","LightGray"] };
 Color.Red = ["Red",0];
 Color.Red.toString = $estr;
 Color.Red.__enum__ = Color;
@@ -38,6 +38,9 @@ Color.Yellow.__enum__ = Color;
 Color.DarkGray = ["DarkGray",9];
 Color.DarkGray.toString = $estr;
 Color.DarkGray.__enum__ = Color;
+Color.LightGray = ["LightGray",10];
+Color.LightGray.toString = $estr;
+Color.LightGray.__enum__ = Color;
 var Drawer = function(stage) {
 	this.stage = stage;
 	this.wallGraphics = new PIXI.Graphics();
@@ -80,6 +83,8 @@ Drawer.colorToInt = function(color) {
 		return 16776960;
 	case 9:
 		return 4210752;
+	case 10:
+		return 11579568;
 	}
 };
 Drawer.prototype = {
@@ -109,14 +114,18 @@ Drawer.prototype = {
 		if(text != "") {
 			col = Drawer.colorToInt(Color.DarkGray);
 		}
-		var _g1 = 0;
-		var _g = "Examine:".length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			this.setBackground(i,yy,col);
-		}
+		this.setMultiBackground(0,yy,"Examine:".length,col);
+		this.setMultiBackground(0,yy == 22 ? 23 : 22,"Examine:".length,0);
 		if(text != "") {
 			this.drawText(0,yy,"Examine: " + text);
+		}
+	}
+	,setMultiBackground: function(x,y,width,col) {
+		var _g1 = x;
+		var _g = x + width;
+		while(_g1 < _g) {
+			var i = _g1++;
+			this.setBackground(i,y,col);
 		}
 	}
 	,setWorldView: function(screenX,screenY,worldX,worldY,width,height) {
@@ -127,23 +136,32 @@ Drawer.prototype = {
 		this.worldWidth = width;
 		this.worldHeight = height;
 	}
-	,setWorldCharacter: function(x,y,character,color) {
+	,setWorldCharacter: function(x,y,character,color,notInView) {
+		if(notInView == null) {
+			notInView = false;
+		}
 		if(color == null) {
 			color = 16777215;
 		}
 		if(x >= this.worldX && y >= this.worldY && x < this.worldX + this.worldWidth && y < this.worldY + this.worldHeight) {
-			this.setCharacter(x - this.worldX + this.screenX,y - this.worldY + this.screenY,character,color);
+			this.setCharacter(x - this.worldX + this.screenX,y - this.worldY + this.screenY,character,color,notInView ? 0.5 : 1);
 		}
 	}
-	,setWorldWall: function(x,y,color) {
+	,setWorldWall: function(x,y,color,notInView) {
+		if(notInView == null) {
+			notInView = false;
+		}
 		if(color == null) {
 			color = 16777215;
 		}
 		if(x >= this.worldX && y >= this.worldY && x < this.worldX + this.worldWidth && y < this.worldY + this.worldHeight) {
-			this.setBackground(x - this.worldX + this.screenX,y - this.worldY + this.screenY,color);
+			this.setBackground(x - this.worldX + this.screenX,y - this.worldY + this.screenY,color,notInView ? 0.5 : 1);
 		}
 	}
-	,setCharacter: function(x,y,character,color) {
+	,setCharacter: function(x,y,character,color,alpha) {
+		if(alpha == null) {
+			alpha = 1.0;
+		}
 		if(color == null) {
 			color = 16777215;
 		}
@@ -152,15 +170,19 @@ Drawer.prototype = {
 		}
 		this.bitmaps[y][x].text = character;
 		this.bitmaps[y][x].tint = color;
+		this.bitmaps[y][x].alpha = alpha;
 	}
-	,setBackground: function(x,y,color) {
+	,setBackground: function(x,y,color,alpha) {
+		if(alpha == null) {
+			alpha = 1.0;
+		}
 		if(color == null) {
 			color = 16777215;
 		}
 		if(x < 0 || y < 0 || x >= 50 || y >= 24) {
 			return;
 		}
-		this.wallGraphics.beginFill(color);
+		this.wallGraphics.beginFill(color,alpha);
 		this.wallGraphics.drawRect(x * 15,y * 25,15,25);
 		this.wallGraphics.endFill();
 	}
@@ -306,13 +328,12 @@ var Game = function(application,stage,gameRect) {
 	this.keyboard = new Keyboard();
 	this.world = new World(this.drawer);
 	this.mouse = new Mouse(stage,this.world);
-	this.info = new ui_InfoDisplay(this.keyboard,this.world,this);
-	this.world.info = this.info;
 	this.player = new Player(this.keyboard,this.world,this);
 	this.world.player = this.player;
 	this.focusedElement = this.player;
-	this.drawer.clear();
-	this.world.draw();
+	this.info = new ui_InfoDisplay(this.keyboard,this.world,this,this.player);
+	this.world.info = this.info;
+	this.drawWorld();
 };
 Game.__name__ = true;
 Game.prototype = {
@@ -323,9 +344,13 @@ Game.prototype = {
 	}
 	,focus: function(element) {
 		this.focusedElement = element;
+		if(element.get_showsWorld()) {
+			this.drawWorld();
+		}
 	}
-	,nextFocus: function() {
-		this.focus(this.player);
+	,drawWorld: function() {
+		this.drawer.clear();
+		this.world.draw();
 	}
 	,postUpdate: function() {
 		this.keyboard.postUpdate();
@@ -433,8 +458,15 @@ Keyboard.getLetterCode = function(letter) {
 };
 Keyboard.prototype = {
 	anyConfirm: function() {
-		if(!this.down[32]) {
-			return this.down[13];
+		if(!this.pressed[32]) {
+			return this.pressed[13];
+		} else {
+			return true;
+		}
+	}
+	,anyBack: function() {
+		if(!this.pressed[27]) {
+			return this.pressed[8];
 		} else {
 			return true;
 		}
@@ -446,6 +478,34 @@ Keyboard.prototype = {
 		while(_g < 256) {
 			var i = _g++;
 			this.pressed[i] = false;
+		}
+	}
+	,leftKey: function() {
+		if(!this.pressed[37]) {
+			return this.pressed[Keyboard.getLetterCode("A")];
+		} else {
+			return true;
+		}
+	}
+	,rightKey: function() {
+		if(!this.pressed[39]) {
+			return this.pressed[Keyboard.getLetterCode("D")];
+		} else {
+			return true;
+		}
+	}
+	,upKey: function() {
+		if(!this.pressed[38]) {
+			return this.pressed[Keyboard.getLetterCode("W")];
+		} else {
+			return true;
+		}
+	}
+	,downKey: function() {
+		if(!this.pressed[40]) {
+			return this.pressed[Keyboard.getLetterCode("S")];
+		} else {
+			return true;
 		}
 	}
 	,__class__: Keyboard
@@ -702,6 +762,130 @@ Pathfinder.prototype = {
 		}
 		return foundPositions;
 	}
+	,isVisible: function(firstPosition,secondPosition,onlyViewBlocking,cornersAreBlocking) {
+		if(cornersAreBlocking == null) {
+			cornersAreBlocking = true;
+		}
+		if(onlyViewBlocking == null) {
+			onlyViewBlocking = true;
+		}
+		var _gthis = this;
+		var checkIfBlocking = function(elem) {
+			if(onlyViewBlocking) {
+				return elem.get_isViewBlocking();
+			} else {
+				return elem.get_isBlocking();
+			}
+		};
+		var checkPoint = function(y,x) {
+			if(firstPosition.x == x && firstPosition.y == y || secondPosition.x == x && secondPosition.y == y) {
+				return false;
+			}
+			return common_ArrayExtensions.any(_gthis.world.elementsAtPosition(new common_Point(x,y)),checkIfBlocking);
+		};
+		var x1 = firstPosition.x;
+		var y1 = firstPosition.y;
+		var x2 = secondPosition.x;
+		var y2 = secondPosition.y;
+		var i;
+		var ystep;
+		var xstep;
+		var error;
+		var errorprev;
+		var y3 = y1;
+		var x3 = x1;
+		var ddy;
+		var ddx;
+		var dx = x2 - x1;
+		var dy = y2 - y1;
+		if(checkPoint(y1,x1)) {
+			return false;
+		}
+		if(dy < 0) {
+			ystep = -1;
+			dy = -dy;
+		} else {
+			ystep = 1;
+		}
+		if(dx < 0) {
+			xstep = -1;
+			dx = -dx;
+		} else {
+			xstep = 1;
+		}
+		ddy = 2 * dy;
+		ddx = 2 * dx;
+		if(ddx >= ddy) {
+			error = dx;
+			errorprev = error;
+			var _g1 = 0;
+			var _g = dx;
+			while(_g1 < _g) {
+				var i1 = _g1++;
+				x3 += xstep;
+				error += ddy;
+				if(error > ddx) {
+					y3 += ystep;
+					error -= ddx;
+					if(error + errorprev < ddx) {
+						if(checkPoint(y3 - ystep,x3)) {
+							return false;
+						}
+					} else if(error + errorprev > ddx) {
+						if(checkPoint(y3,x3 - xstep)) {
+							return false;
+						}
+					} else if(cornersAreBlocking) {
+						if(checkPoint(y3 - ystep,x3)) {
+							return false;
+						}
+						if(checkPoint(y3,x3 - xstep)) {
+							return false;
+						}
+					}
+				}
+				if(checkPoint(y3,x3)) {
+					return false;
+				}
+				errorprev = error;
+			}
+		} else {
+			error = dy;
+			errorprev = error;
+			var _g11 = 0;
+			var _g2 = dy;
+			while(_g11 < _g2) {
+				var i2 = _g11++;
+				y3 += ystep;
+				error += ddx;
+				if(error > ddy) {
+					x3 += xstep;
+					error -= ddy;
+					if(error + errorprev < ddy) {
+						if(checkPoint(y3,x3 - xstep)) {
+							return false;
+						}
+					} else if(error + errorprev > ddy) {
+						if(checkPoint(y3 - ystep,x3)) {
+							return false;
+						}
+					} else if(cornersAreBlocking) {
+						if(checkPoint(y3,x3 - xstep)) {
+							return false;
+						}
+						if(checkPoint(y3 - ystep,x3)) {
+							return false;
+						}
+					}
+				}
+				if(checkPoint(y3,x3)) {
+					return false;
+				}
+				errorprev = error;
+			}
+		}
+		return true;
+	}
 	,__class__: Pathfinder
 };
 var Player = function(keyboard,world,game) {
@@ -709,6 +893,7 @@ var Player = function(keyboard,world,game) {
 	this.ownBody = new worldElements_creatures_Human(world,new common_Point(1,1));
 	world.addElement(this.ownBody);
 	this.controllingBody = this.ownBody;
+	this.statusEffectsMenuKey = Keyboard.getLetterCode("e");
 };
 Player.__name__ = true;
 Player.__super__ = Focusable;
@@ -719,16 +904,16 @@ Player.prototype = $extend(Focusable.prototype,{
 	,update: function() {
 		var xMove = 0;
 		var yMove = 0;
-		if(this.keyboard.pressed[37] || this.keyboard.pressed[Keyboard.getLetterCode("A")]) {
+		if(this.keyboard.leftKey()) {
 			--xMove;
 		}
-		if(this.keyboard.pressed[39] || this.keyboard.pressed[Keyboard.getLetterCode("D")]) {
+		if(this.keyboard.rightKey()) {
 			++xMove;
 		}
-		if(this.keyboard.pressed[38] || this.keyboard.pressed[Keyboard.getLetterCode("W")]) {
+		if(this.keyboard.upKey()) {
 			--yMove;
 		}
-		if(this.keyboard.pressed[40] || this.keyboard.pressed[Keyboard.getLetterCode("S")]) {
+		if(this.keyboard.downKey()) {
 			++yMove;
 		}
 		var moveDirection = null;
@@ -748,7 +933,40 @@ Player.prototype = $extend(Focusable.prototype,{
 				this.controllingBody.hasMoved = true;
 				this.game.afterStep();
 			}
+		} else if(this.keyboard.pressed[this.statusEffectsMenuKey]) {
+			this.showStatusEffects();
 		}
+	}
+	,showStatusEffects: function() {
+		this.game.focus(new ui_Menu(this.game.drawer,this.keyboard,this.world,this.game,this,"Status Effects",[new ui_MenuItem("Item 1","Extra description",function() {
+			console.log("use item 1");
+		}),new ui_MenuItem("Item 2","",function() {
+			console.log("use item 2");
+		}),new ui_MenuItem("Item 3","Another Extra description",function() {
+			console.log("use item 3");
+		}),new ui_MenuItem("Item 4","dsf Extra description",function() {
+			console.log("use item 3");
+		}),new ui_MenuItem("Item 5","3e Extra description",function() {
+			console.log("use item 3");
+		}),new ui_MenuItem("Item 6","2 Extra description",function() {
+			console.log("use item 3");
+		}),new ui_MenuItem("Item 3a","Another Extra description",function() {
+			console.log("use item 3");
+		}),new ui_MenuItem("Item 4a","dsf Extra description",function() {
+			console.log("use item 3");
+		}),new ui_MenuItem("Item 5a","3e Extra description",function() {
+			console.log("use item 3");
+		}),new ui_MenuItem("Item 6a","2 Extra description",function() {
+			console.log("use item 3");
+		}),new ui_MenuItem("Item 7a","2 Extra description",function() {
+			console.log("use item 3");
+		}),new ui_MenuItem("Item 1","Extra description",function() {
+			console.log("use item 1");
+		}),new ui_MenuItem("Item 2","",function() {
+			console.log("use item 2");
+		}),new ui_MenuItem("Item 3","Another Extra description",function() {
+			console.log("use item 3");
+		})],this.statusEffectsMenuKey));
 	}
 	,__class__: Player
 });
@@ -833,6 +1051,12 @@ var World = function(drawer) {
 	this.elements.push(new worldElements_Wall(this,new common_Point(3,0)));
 	this.elements.push(new worldElements_Wall(this,new common_Point(2,1)));
 	this.elements.push(new worldElements_Wall(this,new common_Point(2,2)));
+	this.elements.push(new worldElements_Wall(this,new common_Point(4,1)));
+	this.elements.push(new worldElements_Wall(this,new common_Point(3,2)));
+	this.elements.push(new worldElements_Wall(this,new common_Point(4,2)));
+	this.elements.push(new worldElements_Wall(this,new common_Point(5,2)));
+	this.elements.push(new worldElements_Wall(this,new common_Point(6,1)));
+	this.elements.push(new worldElements_Wall(this,new common_Point(3,1)));
 	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,2)));
 };
 World.__name__ = true;
@@ -878,6 +1102,14 @@ World.prototype = {
 			}
 		}
 		this.removeElementsWhereNeeded();
+		var _g3 = 0;
+		var _g11 = this.elements;
+		while(_g3 < _g11.length) {
+			var element1 = _g11[_g3];
+			++_g3;
+			element1.postUpdate();
+		}
+		this.removeElementsWhereNeeded();
 		this.draw();
 	}
 	,requestExtraUpdate: function(elem) {
@@ -895,13 +1127,73 @@ World.prototype = {
 		}
 	}
 	,draw: function() {
+		var _gthis = this;
 		this.drawer.setWorldView(0,2,this.viewX,this.viewY,50,20);
 		var _g = 0;
 		var _g1 = this.elements;
 		while(_g < _g1.length) {
 			var element = _g1[_g];
 			++_g;
-			element.draw(this.drawer);
+			element.isCurrentlyVisible = false;
+			if(this.pathfinder.isVisible(this.player.controllingBody.position,element.position,true)) {
+				element.draw(this.drawer,false);
+				element.seenByPlayer = true;
+				element.isCurrentlyVisible = true;
+			} else {
+				var nowSeen = false;
+				if(element.get_isEasierVisible()) {
+					var anyIndirectlyVisible = [false];
+					this.forEachDirectionFromPoint(element.position,(function(anyIndirectlyVisible1) {
+						return function(p) {
+							if(_gthis.pathfinder.isVisible(_gthis.player.controllingBody.position,p,true) && _gthis.noBlockingElementsAt(p)) {
+								anyIndirectlyVisible1[0] = true;
+							}
+						};
+					})(anyIndirectlyVisible));
+					if(anyIndirectlyVisible[0]) {
+						nowSeen = true;
+						element.isCurrentlyVisible = true;
+						element.draw(this.drawer,false);
+						element.seenByPlayer = true;
+					}
+				}
+				if(!nowSeen && element.seenByPlayer) {
+					element.draw(this.drawer,true);
+					element.isCurrentlyVisible = true;
+				}
+			}
+		}
+		var _g2 = 0;
+		var _g11 = this.elements;
+		while(_g2 < _g11.length) {
+			var element1 = _g11[_g2];
+			++_g2;
+			if(js_Boot.__instanceof(element1,worldElements_Wall)) {
+				var wall = element1;
+				if(!wall.seenByPlayer) {
+					var allAroundSeen = [true];
+					this.forEachDirectionFromPoint(wall.position,(function(allAroundSeen1) {
+						return function(p1) {
+							if(_gthis.noBlockingElementsAt(p1) || common_ArrayExtensions.any(_gthis.elementsAtPosition(p1),(function() {
+								return function(elem) {
+									if(elem.get_isViewBlocking()) {
+										return !elem.seenByPlayer;
+									} else {
+										return false;
+									}
+								};
+							})())) {
+								allAroundSeen1[0] = false;
+							}
+						};
+					})(allAroundSeen));
+					if(allAroundSeen[0]) {
+						wall.seenByPlayer = true;
+						wall.draw(this.drawer,true);
+						wall.isCurrentlyVisible = true;
+					}
+				}
+			}
 		}
 	}
 	,positionInDirection: function(position,direction) {
@@ -926,6 +1218,24 @@ World.prototype = {
 			return null;
 		}
 	}
+	,forEachDirectionFromPoint: function(position,functionToExecute) {
+		var left = new common_Point(position.x - 1,position.y);
+		if(this.isPositionInWorld(left)) {
+			functionToExecute(left);
+		}
+		var right = new common_Point(position.x + 1,position.y);
+		if(this.isPositionInWorld(right)) {
+			functionToExecute(right);
+		}
+		var up = new common_Point(position.x,position.y - 1);
+		if(this.isPositionInWorld(up)) {
+			functionToExecute(up);
+		}
+		var down = new common_Point(position.x,position.y + 1);
+		if(this.isPositionInWorld(down)) {
+			functionToExecute(down);
+		}
+	}
 	,isPositionInWorld: function(position) {
 		if(position.x >= 0 && position.y >= 0 && position.x < this.width) {
 			return position.y < this.height;
@@ -935,6 +1245,18 @@ World.prototype = {
 	}
 	,elementsAtPosition: function(position) {
 		return this.elementsByPosition[position.x][position.y];
+	}
+	,noBlockingElementsAt: function(position,viewBlockingOnly) {
+		if(viewBlockingOnly == null) {
+			viewBlockingOnly = true;
+		}
+		return !common_ArrayExtensions.any(this.elementsAtPosition(position),function(elem) {
+			if(viewBlockingOnly) {
+				return elem.get_isViewBlocking();
+			} else {
+				return elem.get_isBlocking();
+			}
+		});
 	}
 	,toWorldPoint: function(point) {
 		var newPoint = new common_Point(point.x,point.y);
@@ -953,10 +1275,12 @@ World.prototype = {
 		while(_g < _g1.length) {
 			var element = _g1[_g];
 			++_g;
-			if(help != "") {
-				help += "\n";
+			if(element.isCurrentlyVisible) {
+				if(help != "") {
+					help += "\n";
+				}
+				help += element.getInfo();
 			}
-			help += element.getInfo();
 		}
 		return help;
 	}
@@ -1589,16 +1913,17 @@ js_Boot.__isNativeObj = function(o) {
 js_Boot.__resolveNativeClass = function(name) {
 	return $global[name];
 };
-var ui_InfoDisplay = function(keyboard,world,game) {
+var ui_InfoDisplay = function(keyboard,world,game,innerFocusable) {
 	this.currentLine = 0;
 	this.info = "";
+	this.innerFocusable = innerFocusable;
 	Focusable.call(this,keyboard,world,game);
 };
 ui_InfoDisplay.__name__ = true;
 ui_InfoDisplay.__super__ = Focusable;
 ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 	get_showsWorld: function() {
-		return true;
+		return this.innerFocusable.get_showsWorld();
 	}
 	,clear: function() {
 		this.info = "";
@@ -1641,7 +1966,7 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 			this.currentLine += 2;
 			this.drawCurrentLines(this.game.drawer);
 			if(this.currentLine >= this.currentLines.length - 2) {
-				this.game.nextFocus();
+				this.game.focus(this.innerFocusable);
 			}
 		}
 	}
@@ -1656,7 +1981,112 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 	}
 	,__class__: ui_InfoDisplay
 });
+var ui_Menu = function(drawer,keyboard,world,game,innerFocusable,title,items,extraCloseKey) {
+	this.scrollTop = 0;
+	this.selectedItem = 0;
+	this.drawer = drawer;
+	Focusable.call(this,keyboard,world,game);
+	this.title = title;
+	this.items = items;
+	this.extraCloseKey = extraCloseKey;
+	this.innerFocusable = innerFocusable;
+	this.info = new ui_InfoDisplay(keyboard,world,game,this);
+	game.focus(this);
+	this.draw();
+};
+ui_Menu.__name__ = true;
+ui_Menu.__super__ = Focusable;
+ui_Menu.prototype = $extend(Focusable.prototype,{
+	update: function() {
+		if(this.keyboard.anyBack() || this.extraCloseKey != null && this.keyboard.pressed[this.extraCloseKey]) {
+			this.game.focus(this.innerFocusable);
+		} else {
+			var down = this.keyboard.downKey() && !this.keyboard.upKey();
+			var up = this.keyboard.upKey() && !this.keyboard.downKey();
+			if(down && this.selectedItem < this.items.length - 1) {
+				this.selectedItem += 1;
+				this.draw();
+			} else if(up && this.selectedItem > 0) {
+				this.selectedItem -= 1;
+				this.draw();
+			} else if(this.keyboard.anyConfirm()) {
+				if(this.items[this.selectedItem].onUse != null) {
+					this.items[this.selectedItem].onUse();
+				}
+			}
+		}
+	}
+	,draw: function() {
+		this.drawer.clear();
+		this.drawer.setMultiBackground(0,2,this.title.length,Drawer.colorToInt(Color.DarkGray));
+		this.drawer.drawText(0,2,this.title);
+		var menuHeight = 0;
+		var selectedAt = 0;
+		var upperLimit = 3;
+		var _g1 = 0;
+		var _g = this.items.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var item = this.items[i];
+			if(this.selectedItem == i) {
+				selectedAt = menuHeight;
+			}
+			menuHeight += item.getHeight(this.drawer);
+		}
+		var val = selectedAt - ((22 - upperLimit) / 2 | 0);
+		var maxVal = menuHeight - 22 + upperLimit;
+		this.scrollTop = val < 0 ? 0 : val > maxVal ? maxVal : val;
+		var yy = upperLimit - this.scrollTop;
+		var _g11 = 0;
+		var _g2 = this.items.length;
+		while(_g11 < _g2) {
+			var i1 = _g11++;
+			var item1 = this.items[i1];
+			item1.draw(this.drawer,yy,upperLimit,22,this.selectedItem == i1);
+			yy += item1.getHeight(this.drawer);
+		}
+	}
+	,__class__: ui_Menu
+});
+var ui_MenuItem = function(text,extraDescription,onUse) {
+	this.text = text;
+	this.extraDescription = extraDescription;
+	this.onUse = onUse;
+};
+ui_MenuItem.__name__ = true;
+ui_MenuItem.prototype = {
+	getHeight: function(drawer) {
+		return 1 + (this.extraDescription == "" ? 0 : drawer.getAmountOfLines(2,0,this.extraDescription));
+	}
+	,draw: function(drawer,y,minY,maxY,selected) {
+		if(y >= maxY) {
+			return;
+		}
+		if(y >= minY) {
+			if(selected) {
+				drawer.drawText(0,y,">");
+			}
+			drawer.drawText(2,y,this.text);
+		}
+		var yy = y + 1;
+		if(this.extraDescription != "") {
+			var lines = drawer.splitIntoLines(2,y,this.extraDescription);
+			var _g = 0;
+			while(_g < lines.length) {
+				var line = lines[_g];
+				++_g;
+				if(yy < maxY && yy >= minY) {
+					drawer.drawText(2,yy,line,Drawer.colorToInt(Color.LightGray));
+				}
+				++yy;
+			}
+		}
+	}
+	,__class__: ui_MenuItem
+};
 var worldElements_WorldElement = function(world,position) {
+	this.isCurrentlyVisible = false;
+	this.seenByPlayer = false;
 	this.world = world;
 	this.set_position(position);
 	this.character = "";
@@ -1666,6 +2096,12 @@ var worldElements_WorldElement = function(world,position) {
 worldElements_WorldElement.__name__ = true;
 worldElements_WorldElement.prototype = {
 	get_isBlocking: function() {
+		return false;
+	}
+	,get_isViewBlocking: function() {
+		return false;
+	}
+	,get_isEasierVisible: function() {
 		return false;
 	}
 	,set_position: function(newPosition) {
@@ -1680,13 +2116,15 @@ worldElements_WorldElement.prototype = {
 	}
 	,preUpdate: function() {
 	}
+	,postUpdate: function() {
+	}
 	,update: function(isExtra) {
 		if(isExtra == null) {
 			isExtra = false;
 		}
 	}
-	,draw: function(drawer) {
-		drawer.setWorldCharacter(this.position.x,this.position.y,this.character,this.color);
+	,draw: function(drawer,notInView) {
+		drawer.setWorldCharacter(this.position.x,this.position.y,this.character,this.color,notInView);
 	}
 	,getInfo: function() {
 		return "You don't know what this is!";
@@ -1713,8 +2151,14 @@ worldElements_Wall.prototype = $extend(worldElements_WorldElement.prototype,{
 	get_isBlocking: function() {
 		return true;
 	}
-	,draw: function(drawer) {
-		drawer.setWorldWall(this.position.x,this.position.y,this.color);
+	,get_isViewBlocking: function() {
+		return true;
+	}
+	,get_isEasierVisible: function() {
+		return true;
+	}
+	,draw: function(drawer,notInView) {
+		drawer.setWorldWall(this.position.x,this.position.y,this.color,notInView);
 	}
 	,getInfo: function() {
 		return "A wall.";
@@ -1742,6 +2186,7 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 		this.stats = new worldElements_creatures_stats_CreatureStats(1,1);
 		this.basicAttack = new worldElements_creatures_actions_DirectionalAttack(this);
 		this.attackedBy = [];
+		this.statusEffects = [];
 	}
 	,preUpdate: function() {
 		this.hasMoved = false;
@@ -1766,6 +2211,16 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			}
 		}
 	}
+	,postUpdate: function() {
+		var i = this.statusEffects.length;
+		while(--i >= 0) {
+			var statusEffect = this.statusEffects[i];
+			statusEffect.onTurn();
+			if(statusEffect.ended) {
+				this.statusEffects.splice(i,1);
+			}
+		}
+	}
 	,getInfo: function() {
 		var pre = "";
 		var post = "";
@@ -1776,7 +2231,20 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 		} else if(this.world.player.ownBody == this) {
 			pre = "Your own body, ";
 		}
-		var str = pre + ("" + this.creatureTypeAorAn + " " + this.creatureTypeName + post + " - " + this.stats.getInfo());
+		var info = this.stats.getInfo();
+		if(this.statusEffects.length > 0) {
+			var _g = 0;
+			var _g1 = this.statusEffects;
+			while(_g < _g1.length) {
+				var statusEffect = _g1[_g];
+				++_g;
+				if(info != "") {
+					info += "; ";
+				}
+				info += statusEffect.name;
+			}
+		}
+		var str = pre + ("" + this.creatureTypeAorAn + " " + this.creatureTypeName + post + " - " + info);
 		if(str.length == 0) {
 			return str;
 		} else {
@@ -1836,6 +2304,9 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			return "it";
 		}
 	}
+	,addStatusEffect: function(statusEffect) {
+		this.statusEffects.push(statusEffect);
+	}
 	,__class__: worldElements_creatures_Creature
 });
 var worldElements_creatures_Human = function(world,position) {
@@ -1854,6 +2325,7 @@ worldElements_creatures_Human.prototype = $extend(worldElements_creatures_Creatu
 		this.stats.setAttack(3);
 		this.creatureAttackVerb = "hit";
 		this.creatureFullAttackVerb = "hit";
+		this.addStatusEffect(new worldElements_creatures_statusEffects_Poison(this));
 	}
 	,__class__: worldElements_creatures_Human
 });
@@ -2055,6 +2527,50 @@ worldElements_creatures_stats_CreatureStats.prototype = {
 	}
 	,__class__: worldElements_creatures_stats_CreatureStats
 };
+var worldElements_creatures_statusEffects_StatusEffect = function(creature) {
+	this.ended = false;
+	this.name = "";
+	this.creature = creature;
+	this.init();
+};
+worldElements_creatures_statusEffects_StatusEffect.__name__ = true;
+worldElements_creatures_statusEffects_StatusEffect.prototype = {
+	init: function() {
+	}
+	,onTurn: function() {
+	}
+	,__class__: worldElements_creatures_statusEffects_StatusEffect
+};
+var worldElements_creatures_statusEffects_Poison = function(creature) {
+	worldElements_creatures_statusEffects_StatusEffect.call(this,creature);
+};
+worldElements_creatures_statusEffects_Poison.__name__ = true;
+worldElements_creatures_statusEffects_Poison.__super__ = worldElements_creatures_statusEffects_StatusEffect;
+worldElements_creatures_statusEffects_Poison.prototype = $extend(worldElements_creatures_statusEffects_StatusEffect.prototype,{
+	init: function() {
+		this.name = "Poisoned";
+		this.hitEvery = 3;
+		this.hitInTurns = 1;
+		this.hitsUntilEnd = 4;
+	}
+	,onTurn: function() {
+		if(this.hitInTurns <= 0) {
+			this.hitsUntilEnd -= 1;
+			this.hitInTurns = this.hitEvery;
+			if(this.creature.isInterestingForPlayer()) {
+				this.creature.world.info.addInfo("Poison dealt 1 damage to " + this.creature.getNameToUse() + ".");
+			}
+			this.creature.stats.hp -= 1;
+			if(this.hitsUntilEnd <= 0) {
+				this.ended = true;
+				this.creature.world.info.addInfo("Then, " + this.creature.getReferenceToUse() + " was no longer poisoned.");
+			}
+		} else {
+			this.hitInTurns -= 1;
+		}
+	}
+	,__class__: worldElements_creatures_statusEffects_Poison
+});
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }
 String.prototype.__class__ = String;

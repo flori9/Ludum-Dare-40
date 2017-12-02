@@ -24,15 +24,15 @@ class Game {
         this.keyboard = new Keyboard();
         this.world = new World(drawer);
         this.mouse = new Mouse(stage, world);
-        info = new ui.InfoDisplay(keyboard, world, this);
-        world.info = info;
 
         player = new Player(keyboard, world, this);
         world.player = player;
         focusedElement = player;
 
-        drawer.clear();
-        world.draw();
+        info = new ui.InfoDisplay(keyboard, world, this, player);
+        world.info = info;
+
+        drawWorld();
     }
 	
 	public function update(timeMod:Float) {
@@ -46,10 +46,20 @@ class Game {
 
     public function focus(element:Focusable) {
         focusedElement = element;
+
+        if (element.showsWorld)
+            drawWorld();
     }
 
-    public function nextFocus() {
+    public function nextFocus(redrawWorld = false) {
         focus(player);
+
+        drawWorld();
+    }
+
+    function drawWorld() {
+        drawer.clear();
+        world.draw();
     }
 
     public function postUpdate() {

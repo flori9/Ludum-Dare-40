@@ -2,6 +2,8 @@ class Player extends Focusable {
     public var ownBody:worldElements.creatures.Human;
     public var controllingBody:worldElements.creatures.Creature;
 
+    var statusEffectsMenuKey:Int;
+
     override function get_showsWorld() return true;
 
     public function new(keyboard:Keyboard, world:World, game:Game) {
@@ -10,18 +12,20 @@ class Player extends Focusable {
         ownBody = new worldElements.creatures.Human(world, new Point(1, 1));
         world.addElement(ownBody);
         controllingBody = ownBody;
+
+        statusEffectsMenuKey = Keyboard.getLetterCode("e");
     }
 
     public override function update() {
         var xMove = 0, yMove = 0;
 
-        if (keyboard.pressed[Keyboard.arrowLeft] || keyboard.pressed[Keyboard.getLetterCode('A')])
+        if (keyboard.leftKey())
             xMove -= 1;
-        if (keyboard.pressed[Keyboard.arrowRight] || keyboard.pressed[Keyboard.getLetterCode('D')])
+        if (keyboard.rightKey())
             xMove += 1;
-        if (keyboard.pressed[Keyboard.arrowUp] || keyboard.pressed[Keyboard.getLetterCode('W')])
+        if (keyboard.upKey())
             yMove -= 1;
-        if (keyboard.pressed[Keyboard.arrowDown] || keyboard.pressed[Keyboard.getLetterCode('S')])
+        if (keyboard.downKey())
             yMove += 1;
         
         var moveDirection = null;
@@ -41,6 +45,27 @@ class Player extends Focusable {
                 controllingBody.hasMoved = true;
                 game.afterStep();
             }
+        } else if (keyboard.pressed[statusEffectsMenuKey]) {
+            showStatusEffects();
         }
+    }
+
+    function showStatusEffects() {
+        game.focus(new ui.Menu(game.drawer, keyboard, world, game, this, "Status Effects", [
+            new ui.MenuItem("Item 1", "Extra description", function() { trace("use item 1"); }),
+            new ui.MenuItem("Item 2", "", function() { trace("use item 2"); }),
+            new ui.MenuItem("Item 3", "Another Extra description", function() { trace("use item 3"); }),
+            new ui.MenuItem("Item 4", "dsf Extra description", function() { trace("use item 3"); }),
+            new ui.MenuItem("Item 5", "3e Extra description", function() { trace("use item 3"); }),
+            new ui.MenuItem("Item 6", "2 Extra description", function() { trace("use item 3"); }),
+            new ui.MenuItem("Item 3a", "Another Extra description", function() { trace("use item 3"); }),
+            new ui.MenuItem("Item 4a", "dsf Extra description", function() { trace("use item 3"); }),
+            new ui.MenuItem("Item 5a", "3e Extra description", function() { trace("use item 3"); }),
+            new ui.MenuItem("Item 6a", "2 Extra description", function() { trace("use item 3"); }),
+            new ui.MenuItem("Item 7a", "2 Extra description", function() { trace("use item 3"); }),
+            new ui.MenuItem("Item 1", "Extra description", function() { trace("use item 1"); }),
+            new ui.MenuItem("Item 2", "", function() { trace("use item 2"); }),
+            new ui.MenuItem("Item 3", "Another Extra description", function() { trace("use item 3"); })
+        ], statusEffectsMenuKey));
     }
 }

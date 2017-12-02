@@ -2,6 +2,7 @@ package worldElements.creatures;
 import worldElements.creatures.movement.*;
 import worldElements.creatures.stats.CreatureStats;
 import worldElements.creatures.actions.*;
+import worldElements.creatures.statusEffects.StatusEffect;
 
 class Creature extends WorldElement {
     public var movement:Movement;
@@ -20,11 +21,14 @@ class Creature extends WorldElement {
     //Creatures may move until they have less speedpoints than the player.
     var speedPoints:Int = 0;
 
+    var statusEffects:Array<StatusEffect>;
+
     public override function init() {
         movement = new BasicMovement();
         stats = new CreatureStats(1, 1);
         basicAttack = new DirectionalAttack(this);
         attackedBy = [];
+        statusEffects = new Array<StatusEffect>();
     }
 
     public override function preUpdate() {
@@ -50,6 +54,16 @@ class Creature extends WorldElement {
         }
     }
 
+    public override function postUpdate() {
+        var i = statusEffects.length;
+        while (--i >= 0) {
+            var statusEffect = statusEffects[i];
+            statusEffect.onTurn();
+            if (statusEffect.ended)
+                statusEffects.splice(i, 1);
+        }
+    }
+
     public override function getInfo():String {
         var pre = "", post = "";
         if (world.player.ownBody == this && world.player.controllingBody == this)
@@ -59,7 +73,15 @@ class Creature extends WorldElement {
         else if (world.player.ownBody == this)
             pre = "Your own body, ";
 
-        return (pre + '$creatureTypeAorAn $creatureTypeName$post - ${stats.getInfo()}').firstToUpper();
+        var info = stats.getInfo();
+        if (statusEffects.length > 0) {
+            for (statusEffect in statusEffects) {
+                if (info != "") info += "; ";
+                info += statusEffect.name;
+            }
+        }
+
+        return (pre + '$creatureTypeAorAn $creatureTypeName$post - $info').firstToUpper();
     }
 
     public override function hasActionFor(triggeringWorldElement:WorldElement) {
@@ -116,5 +138,16 @@ class Creature extends WorldElement {
             return itself ? "yourself" : "you";
         else
             return itself ? "itself" : "it";
+    }
+
+    public function getWereOrWas() {
+        if (world.player.ownBody == this || world.player.controllingBody == this)
+            return "were";
+        else
+            return "was";
+    }
+
+    public function addStatusEffect(statusEffect:StatusEffect) {
+        statusEffects.push(statusEffect);
     }
 }
