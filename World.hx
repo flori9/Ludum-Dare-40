@@ -7,6 +7,7 @@ class World {
      */
     public var elementsByPosition:Array<Array<Array<WorldElement>>>;
     var drawer:Drawer;
+    public var pathfinder:Pathfinder;
 
     public var info:ui.InfoDisplay;
     public var player:Player;
@@ -21,8 +22,11 @@ class World {
     public var viewX = 0;
     public var viewY = 0;
 
+    var extraUpdates:Array<WorldElement>;
+
     public function new(drawer:Drawer) {
         this.drawer = drawer;
+        this.pathfinder = new Pathfinder(this);
 
         elements = new Array<WorldElement>();
         elementsByPosition = [for (i in 0...width)
@@ -32,6 +36,8 @@ class World {
         elements.push(new Wall(this, new Point(1, 0)));
         elements.push(new Wall(this, new Point(2, 0)));
         elements.push(new Wall(this, new Point(3, 0)));
+        elements.push(new Wall(this, new Point(2, 1)));
+        elements.push(new Wall(this, new Point(2, 2)));
         elements.push(new worldElements.creatures.Rat(this, new Point(5, 2)));
     }
 
@@ -56,19 +62,51 @@ class World {
     }
 
     /**
+     *  Called before player has done a move
+     */
+    public function preUpdate() {
+        for (element in elements) {
+            element.preUpdate();
+        }
+    }
+
+    /**
      *  Called after the player has done a move.
      *  Does enemy movement and draws
      */
     public function update() {
         removeElementsWhereNeeded();
 
+        extraUpdates = [];
+
         for (element in elements) {
             element.update();
+        }
+
+        while (extraUpdates.length > 0) {
+            removeElementsWhereNeeded();
+            var processExtraUpdates = extraUpdates.copy();
+            
+            extraUpdates = [];
+
+            for (elem in processExtraUpdates) {
+                elem.preUpdate();
+                elem.update(true);
+            }
         }
 
         removeElementsWhereNeeded();
 
         draw();
+    }
+
+    /**
+     *  If a worldelement is faster than the player, they get to request an extra update
+     *  every now and then.
+     *  @param elem - 
+     */
+    public function requestExtraUpdate(elem:WorldElement) {
+        extraUpdates.push(elem);
     }
 
     public function removeElementsWhereNeeded() {

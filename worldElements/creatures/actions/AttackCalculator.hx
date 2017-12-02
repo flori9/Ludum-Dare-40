@@ -23,6 +23,14 @@ class AttackCalculator {
                 result = Damage(0);
         }
 
+        attackStandardResults(attackingCreature, attackedCreature);
+
         return result;
+    }
+
+    public static function attackStandardResults(attackingCreature:Creature, attackedCreature:Creature) {
+        //The attacked creature now knows the attacking creature has attacked them
+        if (! attackedCreature.attackedBy.contains(attackingCreature))
+            attackedCreature.attackedBy.push(attackingCreature);
     }
 }

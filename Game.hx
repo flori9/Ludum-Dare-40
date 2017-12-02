@@ -71,6 +71,7 @@ class Game {
     public function beforeStep() {
         drawer.clear();
         info.clear();
+        world.preUpdate();
     }
 
     /**

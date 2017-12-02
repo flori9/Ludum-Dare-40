@@ -33,7 +33,7 @@ class WorldElement {
 
     }
 
-    public function update() {
+    public function update(isExtra = false) {
 
     }
 

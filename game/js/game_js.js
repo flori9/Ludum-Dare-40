@@ -263,7 +263,22 @@ var EReg = function(r,opt) {
 };
 EReg.__name__ = true;
 EReg.prototype = {
-	split: function(s) {
+	match: function(s) {
+		if(this.r.global) {
+			this.r.lastIndex = 0;
+		}
+		this.r.m = this.r.exec(s);
+		this.r.s = s;
+		return this.r.m != null;
+	}
+	,matched: function(n) {
+		if(this.r.m != null && n >= 0 && n < this.r.m.length) {
+			return this.r.m[n];
+		} else {
+			throw new js__$Boot_HaxeError("EReg::matched");
+		}
+	}
+	,split: function(s) {
 		var d = "#__delim__#";
 		return s.replace(this.r,d).split(d);
 	}
@@ -326,6 +341,7 @@ Game.prototype = {
 	,beforeStep: function() {
 		this.drawer.clear();
 		this.info.clear();
+		this.world.preUpdate();
 	}
 	,afterStep: function() {
 		this.world.update();
@@ -578,6 +594,116 @@ Mouse.__name__ = true;
 Mouse.prototype = {
 	__class__: Mouse
 };
+var Pathfinder = function(world) {
+	this.world = world;
+};
+Pathfinder.__name__ = true;
+Pathfinder.prototype = {
+	find: function(fromPosition,isGoal,all) {
+		if(all == null) {
+			all = true;
+		}
+		var _g = [];
+		var _g2 = 0;
+		var _g1 = this.world.width;
+		while(_g2 < _g1) {
+			var i = _g2++;
+			var _g3 = [];
+			var _g5 = 0;
+			var _g4 = this.world.height;
+			while(_g5 < _g4) {
+				var j = _g5++;
+				_g3.push(false);
+			}
+			_g.push(_g3);
+		}
+		var visited = _g;
+		var queue = new de_polygonal_ds_ArrayedQueue();
+		var firstDirection = new haxe_ds_ObjectMap();
+		var totalDistance = new haxe_ds_ObjectMap();
+		var foundPositions = [];
+		if(queue.capacity == queue.mSize) {
+			queue.grow();
+		}
+		queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = fromPosition;
+		visited[fromPosition.x][fromPosition.y] = true;
+		firstDirection.set(fromPosition,null);
+		totalDistance.set(fromPosition,0);
+		while(queue.mSize != 0) {
+			if(true != queue.mSize > 0) {
+				throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("queue is empty" + " (size > 0)",{ fileName : "ArrayedQueue.hx", lineNumber : 166, className : "de.polygonal.ds.ArrayedQueue", methodName : "dequeue"}));
+			}
+			var x = queue.mData[queue.mFront++];
+			if(queue.mFront == queue.capacity) {
+				queue.mFront = 0;
+			}
+			queue.mSize--;
+			var queueItem = x;
+			var firstDir = firstDirection.h[queueItem.__id__];
+			var thisDistance = totalDistance.h[queueItem.__id__];
+			if(queueItem != fromPosition && isGoal(queueItem)) {
+				foundPositions.push({ point : queueItem, inDirection : firstDir, distance : thisDistance});
+				if(!all) {
+					break;
+				}
+			}
+			if(queueItem == fromPosition || !common_ArrayExtensions.any(this.world.elementsAtPosition(queueItem),function(elem) {
+				return elem.get_isBlocking();
+			})) {
+				if(queueItem.x > 0 && !visited[queueItem.x - 1][queueItem.y]) {
+					visited[queueItem.x - 1][queueItem.y] = true;
+					var newPoint = new common_Point(queueItem.x - 1,queueItem.y);
+					var v = firstDir == null ? common_Direction.Left : firstDir;
+					firstDirection.set(newPoint,v);
+					var v1 = thisDistance + 1;
+					totalDistance.set(newPoint,v1);
+					if(queue.capacity == queue.mSize) {
+						queue.grow();
+					}
+					queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = newPoint;
+				}
+				if(queueItem.y > 0 && !visited[queueItem.x][queueItem.y - 1]) {
+					visited[queueItem.x][queueItem.y - 1] = true;
+					var newPoint1 = new common_Point(queueItem.x,queueItem.y - 1);
+					var v2 = firstDir == null ? common_Direction.Up : firstDir;
+					firstDirection.set(newPoint1,v2);
+					var v3 = thisDistance + 1;
+					totalDistance.set(newPoint1,v3);
+					if(queue.capacity == queue.mSize) {
+						queue.grow();
+					}
+					queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = newPoint1;
+				}
+				if(queueItem.x < this.world.width - 1 && !visited[queueItem.x + 1][queueItem.y]) {
+					visited[queueItem.x + 1][queueItem.y] = true;
+					var newPoint2 = new common_Point(queueItem.x + 1,queueItem.y);
+					var v4 = firstDir == null ? common_Direction.Right : firstDir;
+					firstDirection.set(newPoint2,v4);
+					var v5 = thisDistance + 1;
+					totalDistance.set(newPoint2,v5);
+					if(queue.capacity == queue.mSize) {
+						queue.grow();
+					}
+					queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = newPoint2;
+				}
+				if(queueItem.y < this.world.height - 1 && !visited[queueItem.x][queueItem.y + 1]) {
+					visited[queueItem.x][queueItem.y + 1] = true;
+					var newPoint3 = new common_Point(queueItem.x,queueItem.y + 1);
+					var v6 = firstDir == null ? common_Direction.Down : firstDir;
+					firstDirection.set(newPoint3,v6);
+					var v7 = thisDistance + 1;
+					totalDistance.set(newPoint3,v7);
+					if(queue.capacity == queue.mSize) {
+						queue.grow();
+					}
+					queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = newPoint3;
+				}
+			}
+		}
+		return foundPositions;
+	}
+	,__class__: Pathfinder
+};
 var Player = function(keyboard,world,game) {
 	Focusable.call(this,keyboard,world,game);
 	this.ownBody = new worldElements_creatures_Human(world,new common_Point(1,1));
@@ -626,12 +752,65 @@ Player.prototype = $extend(Focusable.prototype,{
 	}
 	,__class__: Player
 });
+var Std = function() { };
+Std.__name__ = true;
+Std.parseInt = function(x) {
+	var v = parseInt(x,10);
+	if(v == 0 && (HxOverrides.cca(x,1) == 120 || HxOverrides.cca(x,1) == 88)) {
+		v = parseInt(x);
+	}
+	if(isNaN(v)) {
+		return null;
+	}
+	return v;
+};
+var StringBuf = function() {
+	this.b = "";
+};
+StringBuf.__name__ = true;
+StringBuf.prototype = {
+	__class__: StringBuf
+};
+var StringTools = function() { };
+StringTools.__name__ = true;
+StringTools.isSpace = function(s,pos) {
+	var c = HxOverrides.cca(s,pos);
+	if(!(c > 8 && c < 14)) {
+		return c == 32;
+	} else {
+		return true;
+	}
+};
+StringTools.ltrim = function(s) {
+	var l = s.length;
+	var r = 0;
+	while(r < l && StringTools.isSpace(s,r)) ++r;
+	if(r > 0) {
+		return HxOverrides.substr(s,r,l - r);
+	} else {
+		return s;
+	}
+};
+StringTools.rtrim = function(s) {
+	var l = s.length;
+	var r = 0;
+	while(r < l && StringTools.isSpace(s,l - r - 1)) ++r;
+	if(r > 0) {
+		return HxOverrides.substr(s,0,l - r);
+	} else {
+		return s;
+	}
+};
+StringTools.trim = function(s) {
+	return StringTools.ltrim(StringTools.rtrim(s));
+};
 var World = function(drawer) {
 	this.viewY = 0;
 	this.viewX = 0;
 	this.height = 20;
 	this.width = 50;
 	this.drawer = drawer;
+	this.pathfinder = new Pathfinder(this);
 	this.elements = [];
 	var _g = [];
 	var _g2 = 0;
@@ -652,6 +831,8 @@ var World = function(drawer) {
 	this.elements.push(new worldElements_Wall(this,new common_Point(1,0)));
 	this.elements.push(new worldElements_Wall(this,new common_Point(2,0)));
 	this.elements.push(new worldElements_Wall(this,new common_Point(3,0)));
+	this.elements.push(new worldElements_Wall(this,new common_Point(2,1)));
+	this.elements.push(new worldElements_Wall(this,new common_Point(2,2)));
 	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,2)));
 };
 World.__name__ = true;
@@ -665,8 +846,18 @@ World.prototype = {
 	,removeFromElementsAtPosition: function(element,position) {
 		HxOverrides.remove(this.elementsByPosition[position.x][position.y],element);
 	}
+	,preUpdate: function() {
+		var _g = 0;
+		var _g1 = this.elements;
+		while(_g < _g1.length) {
+			var element = _g1[_g];
+			++_g;
+			element.preUpdate();
+		}
+	}
 	,update: function() {
 		this.removeElementsWhereNeeded();
+		this.extraUpdates = [];
 		var _g = 0;
 		var _g1 = this.elements;
 		while(_g < _g1.length) {
@@ -674,8 +865,23 @@ World.prototype = {
 			++_g;
 			element.update();
 		}
+		while(this.extraUpdates.length > 0) {
+			this.removeElementsWhereNeeded();
+			var processExtraUpdates = this.extraUpdates.slice();
+			this.extraUpdates = [];
+			var _g2 = 0;
+			while(_g2 < processExtraUpdates.length) {
+				var elem = processExtraUpdates[_g2];
+				++_g2;
+				elem.preUpdate();
+				elem.update(true);
+			}
+		}
 		this.removeElementsWhereNeeded();
 		this.draw();
+	}
+	,requestExtraUpdate: function(elem) {
+		this.extraUpdates.push(elem);
 	}
 	,removeElementsWhereNeeded: function() {
 		var i = this.elements.length - 1;
@@ -769,6 +975,9 @@ common_ArrayExtensions.any = function(array,fn) {
 	}
 	return false;
 };
+common_ArrayExtensions.contains = function(array,element) {
+	return array.indexOf(element) != -1;
+};
 var common_Rectangle = function(x,y,width,height) {
 	this.x = x;
 	this.y = y;
@@ -800,8 +1009,338 @@ common_Direction.Up.__enum__ = common_Direction;
 common_Direction.Down = ["Down",3];
 common_Direction.Down.toString = $estr;
 common_Direction.Down.__enum__ = common_Direction;
+var de_polygonal_ds_Hashable = function() { };
+de_polygonal_ds_Hashable.__name__ = true;
+var de_polygonal_ds_Collection = function() { };
+de_polygonal_ds_Collection.__name__ = true;
+de_polygonal_ds_Collection.__interfaces__ = [de_polygonal_ds_Hashable];
+de_polygonal_ds_Collection.prototype = {
+	__class__: de_polygonal_ds_Collection
+};
+var de_polygonal_ds_Queue = function() { };
+de_polygonal_ds_Queue.__name__ = true;
+de_polygonal_ds_Queue.__interfaces__ = [de_polygonal_ds_Collection];
+var de_polygonal_ds_ArrayedQueue = function(initialCapacity,source,fixed) {
+	if(initialCapacity == null) {
+		initialCapacity = 16;
+	}
+	this.mFront = 0;
+	this.mSize = 0;
+	this.growthRate = -2;
+	this.mInitialCapacity = 1 > initialCapacity ? 1 : initialCapacity;
+	this.capacity = this.mInitialCapacity;
+	if(source != null) {
+		this.mSize = source.length;
+		var x = this.mSize;
+		var y = this.capacity;
+		this.capacity = x > y ? x : y;
+	}
+	var len = this.capacity;
+	this.mData = new Array(len);
+	if(source != null) {
+		var d = this.mData;
+		var _g1 = 0;
+		var _g = this.mSize;
+		while(_g1 < _g) {
+			var i = _g1++;
+			d[i] = source[i];
+		}
+	}
+	if(fixed) {
+		this.growthRate = 0;
+	}
+};
+de_polygonal_ds_ArrayedQueue.__name__ = true;
+de_polygonal_ds_ArrayedQueue.__interfaces__ = [de_polygonal_ds_Queue];
+de_polygonal_ds_ArrayedQueue.prototype = {
+	grow: function() {
+		var t = this.capacity;
+		this.capacity = de_polygonal_ds_tools_GrowthRate.compute(this.growthRate,this.capacity);
+		this.resizeContainer(t,this.capacity);
+	}
+	,resizeContainer: function(oldSize,newSize) {
+		var dst = new Array(newSize);
+		if(oldSize < newSize) {
+			if(this.mFront + this.mSize > oldSize) {
+				var n1 = oldSize - this.mFront;
+				var n2 = oldSize - n1;
+				de_polygonal_ds_tools_NativeArrayTools.blit(this.mData,this.mFront,dst,0,n1);
+				de_polygonal_ds_tools_NativeArrayTools.blit(this.mData,0,dst,n1,n2);
+			} else {
+				de_polygonal_ds_tools_NativeArrayTools.blit(this.mData,this.mFront,dst,0,this.mSize);
+			}
+		} else if(this.mFront + this.mSize > oldSize) {
+			var n11 = oldSize - this.mFront;
+			var n21 = this.mSize - this.mFront;
+			de_polygonal_ds_tools_NativeArrayTools.blit(this.mData,this.mFront,dst,0,n11);
+			de_polygonal_ds_tools_NativeArrayTools.blit(this.mData,0,dst,this.mFront,n21);
+		} else {
+			de_polygonal_ds_tools_NativeArrayTools.blit(this.mData,this.mFront,dst,0,this.mSize);
+		}
+		this.mData = dst;
+		this.mFront = 0;
+	}
+	,__class__: de_polygonal_ds_ArrayedQueue
+};
+var de_polygonal_ds_tools_AssertError = function(message,info) {
+	if(message == null) {
+		message = "";
+	}
+	this.message = message;
+	var stack = haxe_CallStack.toString(haxe_CallStack.callStack());
+	var _this_r = new RegExp("\nCalled from de\\.polygonal\\.ds\\.tools\\.AssertError.*$","m".split("u").join(""));
+	stack = stack.replace(_this_r,"");
+	this.message = "Assertation " + message + " failed in file " + info.fileName + ", line " + info.lineNumber + ", " + info.className + ":: " + info.methodName + "\nCall stack:" + stack;
+};
+de_polygonal_ds_tools_AssertError.__name__ = true;
+de_polygonal_ds_tools_AssertError.prototype = {
+	toString: function() {
+		return this.message;
+	}
+	,__class__: de_polygonal_ds_tools_AssertError
+};
+var de_polygonal_ds_tools_GrowthRate = function() { };
+de_polygonal_ds_tools_GrowthRate.__name__ = true;
+de_polygonal_ds_tools_GrowthRate.compute = function(rate,capacity) {
+	if(true != rate >= -3) {
+		throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("invalid growth rate" + " (rate >= -3)",{ fileName : "GrowthRate.hx", lineNumber : 52, className : "de.polygonal.ds.tools.GrowthRate", methodName : "compute"}));
+	}
+	if(rate > 0) {
+		capacity += rate;
+	} else {
+		switch(rate) {
+		case -3:
+			capacity <<= 1;
+			break;
+		case -2:
+			capacity = (capacity * 3 >> 1) + 1;
+			break;
+		case -1:
+			var newSize = capacity + 1;
+			capacity = (newSize >> 3) + (newSize < 9 ? 3 : 6);
+			capacity += newSize;
+			break;
+		case 0:
+			throw new js__$Boot_HaxeError("out of space");
+			break;
+		}
+	}
+	return capacity;
+};
+var de_polygonal_ds_tools_NativeArrayTools = function() { };
+de_polygonal_ds_tools_NativeArrayTools.__name__ = true;
+de_polygonal_ds_tools_NativeArrayTools.blit = function(src,srcPos,dst,dstPos,n) {
+	if(n > 0) {
+		if(true != srcPos < src.length) {
+			throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("srcPos out of range" + " (srcPos < size(src))",{ fileName : "NativeArrayTools.hx", lineNumber : 187, className : "de.polygonal.ds.tools.NativeArrayTools", methodName : "blit"}));
+		}
+		if(true != dstPos < dst.length) {
+			throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("dstPos out of range" + " (dstPos < size(dst))",{ fileName : "NativeArrayTools.hx", lineNumber : 188, className : "de.polygonal.ds.tools.NativeArrayTools", methodName : "blit"}));
+		}
+		if(true != (srcPos + n <= src.length && dstPos + n <= dst.length)) {
+			throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("n out of range" + " (srcPos + n <= size(src) && dstPos + n <= size(dst))",{ fileName : "NativeArrayTools.hx", lineNumber : 189, className : "de.polygonal.ds.tools.NativeArrayTools", methodName : "blit"}));
+		}
+		if(src == dst) {
+			if(srcPos < dstPos) {
+				var i = srcPos + n;
+				var j = dstPos + n;
+				var _g1 = 0;
+				var _g = n;
+				while(_g1 < _g) {
+					var k = _g1++;
+					--i;
+					--j;
+					src[j] = src[i];
+				}
+			} else if(srcPos > dstPos) {
+				var i1 = srcPos;
+				var j1 = dstPos;
+				var _g11 = 0;
+				var _g2 = n;
+				while(_g11 < _g2) {
+					var k1 = _g11++;
+					src[j1] = src[i1];
+					++i1;
+					++j1;
+				}
+			}
+		} else if(srcPos == 0 && dstPos == 0) {
+			var _g12 = 0;
+			var _g3 = n;
+			while(_g12 < _g3) {
+				var i2 = _g12++;
+				dst[i2] = src[i2];
+			}
+		} else if(srcPos == 0) {
+			var _g13 = 0;
+			var _g4 = n;
+			while(_g13 < _g4) {
+				var i3 = _g13++;
+				dst[dstPos + i3] = src[i3];
+			}
+		} else if(dstPos == 0) {
+			var _g14 = 0;
+			var _g5 = n;
+			while(_g14 < _g5) {
+				var i4 = _g14++;
+				dst[i4] = src[srcPos + i4];
+			}
+		} else {
+			var _g15 = 0;
+			var _g6 = n;
+			while(_g15 < _g6) {
+				var i5 = _g15++;
+				dst[dstPos + i5] = src[srcPos + i5];
+			}
+		}
+	}
+};
+var haxe_StackItem = { __ename__ : true, __constructs__ : ["CFunction","Module","FilePos","Method","LocalFunction"] };
+haxe_StackItem.CFunction = ["CFunction",0];
+haxe_StackItem.CFunction.toString = $estr;
+haxe_StackItem.CFunction.__enum__ = haxe_StackItem;
+haxe_StackItem.Module = function(m) { var $x = ["Module",1,m]; $x.__enum__ = haxe_StackItem; $x.toString = $estr; return $x; };
+haxe_StackItem.FilePos = function(s,file,line) { var $x = ["FilePos",2,s,file,line]; $x.__enum__ = haxe_StackItem; $x.toString = $estr; return $x; };
+haxe_StackItem.Method = function(classname,method) { var $x = ["Method",3,classname,method]; $x.__enum__ = haxe_StackItem; $x.toString = $estr; return $x; };
+haxe_StackItem.LocalFunction = function(v) { var $x = ["LocalFunction",4,v]; $x.__enum__ = haxe_StackItem; $x.toString = $estr; return $x; };
+var haxe_CallStack = function() { };
+haxe_CallStack.__name__ = true;
+haxe_CallStack.getStack = function(e) {
+	if(e == null) {
+		return [];
+	}
+	var oldValue = Error.prepareStackTrace;
+	Error.prepareStackTrace = function(error,callsites) {
+		var stack = [];
+		var _g = 0;
+		while(_g < callsites.length) {
+			var site = callsites[_g];
+			++_g;
+			if(haxe_CallStack.wrapCallSite != null) {
+				site = haxe_CallStack.wrapCallSite(site);
+			}
+			var method = null;
+			var fullName = site.getFunctionName();
+			if(fullName != null) {
+				var idx = fullName.lastIndexOf(".");
+				if(idx >= 0) {
+					var className = HxOverrides.substr(fullName,0,idx);
+					var methodName = HxOverrides.substr(fullName,idx + 1,null);
+					method = haxe_StackItem.Method(className,methodName);
+				}
+			}
+			stack.push(haxe_StackItem.FilePos(method,site.getFileName(),site.getLineNumber()));
+		}
+		return stack;
+	};
+	var a = haxe_CallStack.makeStack(e.stack);
+	Error.prepareStackTrace = oldValue;
+	return a;
+};
+haxe_CallStack.callStack = function() {
+	try {
+		throw new Error();
+	} catch( e ) {
+		if (e instanceof js__$Boot_HaxeError) e = e.val;
+		var a = haxe_CallStack.getStack(e);
+		a.shift();
+		return a;
+	}
+};
+haxe_CallStack.toString = function(stack) {
+	var b = new StringBuf();
+	var _g = 0;
+	while(_g < stack.length) {
+		var s = stack[_g];
+		++_g;
+		b.b += "\nCalled from ";
+		haxe_CallStack.itemToString(b,s);
+	}
+	return b.b;
+};
+haxe_CallStack.itemToString = function(b,s) {
+	switch(s[1]) {
+	case 0:
+		b.b += "a C function";
+		break;
+	case 1:
+		var m = s[2];
+		b.b += "module ";
+		b.b += m == null ? "null" : "" + m;
+		break;
+	case 2:
+		var line = s[4];
+		var file = s[3];
+		var s1 = s[2];
+		if(s1 != null) {
+			haxe_CallStack.itemToString(b,s1);
+			b.b += " (";
+		}
+		b.b += file == null ? "null" : "" + file;
+		b.b += " line ";
+		b.b += line == null ? "null" : "" + line;
+		if(s1 != null) {
+			b.b += ")";
+		}
+		break;
+	case 3:
+		var meth = s[3];
+		var cname = s[2];
+		b.b += cname == null ? "null" : "" + cname;
+		b.b += ".";
+		b.b += meth == null ? "null" : "" + meth;
+		break;
+	case 4:
+		var n = s[2];
+		b.b += "local function #";
+		b.b += n == null ? "null" : "" + n;
+		break;
+	}
+};
+haxe_CallStack.makeStack = function(s) {
+	if(s == null) {
+		return [];
+	} else if(typeof(s) == "string") {
+		var stack = s.split("\n");
+		if(stack[0] == "Error") {
+			stack.shift();
+		}
+		var m = [];
+		var rie10 = new EReg("^   at ([A-Za-z0-9_. ]+) \\(([^)]+):([0-9]+):([0-9]+)\\)$","");
+		var _g = 0;
+		while(_g < stack.length) {
+			var line = stack[_g];
+			++_g;
+			if(rie10.match(line)) {
+				var path = rie10.matched(1).split(".");
+				var meth = path.pop();
+				var file = rie10.matched(2);
+				var line1 = Std.parseInt(rie10.matched(3));
+				m.push(haxe_StackItem.FilePos(meth == "Anonymous function" ? haxe_StackItem.LocalFunction() : meth == "Global code" ? null : haxe_StackItem.Method(path.join("."),meth),file,line1));
+			} else {
+				m.push(haxe_StackItem.Module(StringTools.trim(line)));
+			}
+		}
+		return m;
+	} else {
+		return s;
+	}
+};
 var haxe_IMap = function() { };
 haxe_IMap.__name__ = true;
+var haxe_ds_ObjectMap = function() {
+	this.h = { __keys__ : { }};
+};
+haxe_ds_ObjectMap.__name__ = true;
+haxe_ds_ObjectMap.__interfaces__ = [haxe_IMap];
+haxe_ds_ObjectMap.prototype = {
+	set: function(key,value) {
+		var id = key.__id__ || (key.__id__ = ++haxe_ds_ObjectMap.count);
+		this.h[id] = value;
+		this.h.__keys__[id] = key;
+	}
+	,__class__: haxe_ds_ObjectMap
+};
 var haxe_ds_StringMap = function() {
 	this.h = { };
 };
@@ -842,6 +1381,26 @@ haxe_web_Request.getParams = function() {
 	}
 	return params;
 };
+var js__$Boot_HaxeError = function(val) {
+	Error.call(this);
+	this.val = val;
+	this.message = String(val);
+	if(Error.captureStackTrace) {
+		Error.captureStackTrace(this,js__$Boot_HaxeError);
+	}
+};
+js__$Boot_HaxeError.__name__ = true;
+js__$Boot_HaxeError.wrap = function(val) {
+	if((val instanceof Error)) {
+		return val;
+	} else {
+		return new js__$Boot_HaxeError(val);
+	}
+};
+js__$Boot_HaxeError.__super__ = Error;
+js__$Boot_HaxeError.prototype = $extend(Error.prototype,{
+	__class__: js__$Boot_HaxeError
+});
 var js_Boot = function() { };
 js_Boot.__name__ = true;
 js_Boot.getClass = function(o) {
@@ -1119,7 +1678,12 @@ worldElements_WorldElement.prototype = {
 	}
 	,init: function() {
 	}
-	,update: function() {
+	,preUpdate: function() {
+	}
+	,update: function(isExtra) {
+		if(isExtra == null) {
+			isExtra = false;
+		}
 	}
 	,draw: function(drawer) {
 		drawer.setWorldCharacter(this.position.x,this.position.y,this.character,this.color);
@@ -1158,6 +1722,8 @@ worldElements_Wall.prototype = $extend(worldElements_WorldElement.prototype,{
 	,__class__: worldElements_Wall
 });
 var worldElements_creatures_Creature = function(world,position) {
+	this.speedPoints = 0;
+	this.attackedBy = [];
 	this.creatureFullAttackVerb = "bite";
 	this.creatureAttackVerb = "bit";
 	this.creatureTypeAorAn = "a";
@@ -1175,12 +1741,29 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 		this.movement = new worldElements_creatures_movement_BasicMovement();
 		this.stats = new worldElements_creatures_stats_CreatureStats(1,1);
 		this.basicAttack = new worldElements_creatures_actions_DirectionalAttack(this);
+		this.attackedBy = [];
 	}
-	,update: function() {
+	,preUpdate: function() {
+		this.hasMoved = false;
+	}
+	,update: function(isExtra) {
+		if(isExtra == null) {
+			isExtra = false;
+		}
 		worldElements_WorldElement.prototype.update.call(this);
 		if(!this.hasMoved) {
-			this.movement.move(this.world,this);
-			this.hasMoved = true;
+			if(!isExtra) {
+				this.speedPoints += this.stats.speed;
+			}
+			var playerSpeed = this.world.player.controllingBody.stats.speed;
+			if(this.speedPoints >= playerSpeed) {
+				this.movement.move(this.world,this);
+				this.hasMoved = true;
+				this.speedPoints -= playerSpeed;
+				if(this.speedPoints >= playerSpeed) {
+					this.world.requestExtraUpdate(this);
+				}
+			}
 		}
 	}
 	,getInfo: function() {
@@ -1288,6 +1871,7 @@ worldElements_creatures_Rat.prototype = $extend(worldElements_creatures_Creature
 		this.stats.setMaxHP(5);
 		this.stats.setMaxAP(1);
 		this.stats.setAttack(1);
+		this.stats.speed = 150;
 	}
 	,__class__: worldElements_creatures_Rat
 });
@@ -1311,7 +1895,13 @@ worldElements_creatures_actions_AttackCalculator.basicAttack = function(attackin
 	} else {
 		result = worldElements_creatures_actions_AttackResult.Damage(0);
 	}
+	worldElements_creatures_actions_AttackCalculator.attackStandardResults(attackingCreature,attackedCreature);
 	return result;
+};
+worldElements_creatures_actions_AttackCalculator.attackStandardResults = function(attackingCreature,attackedCreature) {
+	if(!common_ArrayExtensions.contains(attackedCreature.attackedBy,attackingCreature)) {
+		attackedCreature.attackedBy.push(attackingCreature);
+	}
 };
 var worldElements_creatures_actions_CreatureAction = function(creature) {
 	this.creature = creature;
@@ -1416,7 +2006,19 @@ var worldElements_creatures_movement_BasicMovement = function() {
 worldElements_creatures_movement_BasicMovement.__name__ = true;
 worldElements_creatures_movement_BasicMovement.__super__ = worldElements_creatures_movement_Movement;
 worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements_creatures_movement_Movement.prototype,{
-	__class__: worldElements_creatures_movement_BasicMovement
+	move: function(world,creature) {
+		var toPlayer = world.pathfinder.find(creature.position,function(pos) {
+			return common_ArrayExtensions.contains(world.elementsAtPosition(pos),world.player.controllingBody);
+		},false);
+		if(toPlayer.length > 0) {
+			if(toPlayer[0].distance == 1) {
+				creature.attack(world.player.controllingBody);
+			} else {
+				this.moveInDirection(world,creature,toPlayer[0].inDirection);
+			}
+		}
+	}
+	,__class__: worldElements_creatures_movement_BasicMovement
 });
 var worldElements_creatures_stats_CreatureStats = function(hp,ap,attack,defence) {
 	if(defence == null) {
@@ -1431,6 +2033,7 @@ var worldElements_creatures_stats_CreatureStats = function(hp,ap,attack,defence)
 	this.defence = defence;
 	this.hp = hp;
 	this.ap = ap;
+	this.speed = 100;
 };
 worldElements_creatures_stats_CreatureStats.__name__ = true;
 worldElements_creatures_stats_CreatureStats.prototype = {
@@ -1466,6 +2069,7 @@ Bool.__ename__ = ["Bool"];
 var Class = { __name__ : ["Class"]};
 var Enum = { };
 var __map_reserved = {};
+haxe_ds_ObjectMap.count = 0;
 js_Boot.__toStr = ({ }).toString;
 Main.main();
 })(typeof window != "undefined" ? window : typeof global != "undefined" ? global : typeof self != "undefined" ? self : this);

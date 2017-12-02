@@ -1,11 +1,14 @@
 # Uncomment when pixi is not installed
 # -cmd haxelib install pixijs || true
+# -cmd haxelib install polygonal-ds || true
 
 # Debug mode:
 -debug
 
 # Libs:
 -lib pixijs
+-lib polygonal-ds
+
 -dce full
 
 # Options:

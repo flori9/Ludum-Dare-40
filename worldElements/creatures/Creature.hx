@@ -13,24 +13,40 @@ class Creature extends WorldElement {
     public var creatureAttackVerb:String = "bit";
     public var creatureFullAttackVerb:String = "bite";
 
+    public var attackedBy:Array<Creature> = [];
+
     var basicAttack:DirectionalAttack;
+
+    //Creatures may move until they have less speedpoints than the player.
+    var speedPoints:Int = 0;
 
     public override function init() {
         movement = new BasicMovement();
         stats = new CreatureStats(1, 1);
         basicAttack = new DirectionalAttack(this);
+        attackedBy = [];
     }
 
     public override function preUpdate() {
         hasMoved = false;
     }
 
-    public override function update() {
+    public override function update(isExtra = false) {
         super.update();
 
         if (!hasMoved) {
-            movement.move(world, this);
-            hasMoved = true;
+            if (! isExtra) //Extra updates don't give speed points, of course
+                speedPoints += stats.speed;
+            var playerSpeed = world.player.controllingBody.stats.speed;
+
+            if (speedPoints >= playerSpeed) {
+                movement.move(world, this);
+                hasMoved = true;
+
+                speedPoints -= playerSpeed;
+                if (speedPoints >= playerSpeed)
+                    world.requestExtraUpdate(this);
+            }
         }
     }
 

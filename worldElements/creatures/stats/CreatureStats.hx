@@ -9,6 +9,7 @@ class CreatureStats {
     public var ap:Int;
     public var attack:Int;
     public var defence:Int;
+    public var speed:Int;
 
     public var maxHP:Int;
     public var maxAP:Int;
@@ -21,6 +22,7 @@ class CreatureStats {
     
         this.hp = hp;
         this.ap = ap;
+        this.speed = 100;
     }
 
     public function getInfo():String {
