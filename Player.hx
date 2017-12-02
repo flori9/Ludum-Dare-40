@@ -1,30 +1,27 @@
-class Player {
-    var keyboard:Keyboard;
-    var world:World;
-    var game:Game;
-    var ownBody:worldElements.creatures.Human;
-    var controllingBody:worldElements.Creature;
+class Player extends Focusable {
+    public var ownBody:worldElements.creatures.Human;
+    public var controllingBody:worldElements.creatures.Creature;
+
+    override function get_showsWorld() return true;
 
     public function new(keyboard:Keyboard, world:World, game:Game) {
-        this.keyboard = keyboard;
-        this.world = world;
-        this.game = game;
+        super(keyboard, world, game);
 
         ownBody = new worldElements.creatures.Human(world, new Point(1, 1));
         world.addElement(ownBody);
         controllingBody = ownBody;
     }
 
-    public function update() {
+    public override function update() {
         var xMove = 0, yMove = 0;
 
-        if (keyboard.pressed[Keyboard.arrowLeft])
+        if (keyboard.pressed[Keyboard.arrowLeft] || keyboard.pressed[Keyboard.getLetterCode('A')])
             xMove -= 1;
-        if (keyboard.pressed[Keyboard.arrowRight])
+        if (keyboard.pressed[Keyboard.arrowRight] || keyboard.pressed[Keyboard.getLetterCode('D')])
             xMove += 1;
-        if (keyboard.pressed[Keyboard.arrowUp])
+        if (keyboard.pressed[Keyboard.arrowUp] || keyboard.pressed[Keyboard.getLetterCode('W')])
             yMove -= 1;
-        if (keyboard.pressed[Keyboard.arrowDown])
+        if (keyboard.pressed[Keyboard.arrowDown] || keyboard.pressed[Keyboard.getLetterCode('S')])
             yMove += 1;
         
         var moveDirection = null;

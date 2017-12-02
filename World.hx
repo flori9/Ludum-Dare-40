@@ -8,11 +8,18 @@ class World {
     public var elementsByPosition:Array<Array<Array<WorldElement>>>;
     var drawer:Drawer;
 
-    static inline var screenX = 0;
-    static inline var screenY = 1;
+    public var info:ui.InfoDisplay;
+    public var player:Player;
 
-    public var width = 50;
-    public var height = 23;
+    static inline var screenX = 0;
+    static inline var screenY = 2;
+
+    public static inline var displayWidth = 50;
+    public static inline var displayHeight = 20;
+    public var width = displayWidth;
+    public var height = displayHeight;
+    public var viewX = 0;
+    public var viewY = 0;
 
     public function new(drawer:Drawer) {
         this.drawer = drawer;
@@ -23,6 +30,9 @@ class World {
         
         elements.push(new Wall(this, new Point(0, 0)));
         elements.push(new Wall(this, new Point(1, 0)));
+        elements.push(new Wall(this, new Point(2, 0)));
+        elements.push(new Wall(this, new Point(3, 0)));
+        elements.push(new worldElements.creatures.Rat(this, new Point(5, 2)));
     }
 
     public function addElement(element:WorldElement) {
@@ -50,15 +60,33 @@ class World {
      *  Does enemy movement and draws
      */
     public function update() {
+        removeElementsWhereNeeded();
+
         for (element in elements) {
             element.update();
         }
 
+        removeElementsWhereNeeded();
+
         draw();
     }
 
+    public function removeElementsWhereNeeded() {
+        var i = elements.length - 1;
+
+        while (i >= 0) {
+            var element = elements[i];
+            if (element.shouldRemove()) {
+                removeFromElementsAtPosition(element, element.position);
+                elements.splice(i, 1);
+            }
+
+            i -= 1;
+        }
+    }
+
     public function draw() {
-        drawer.setWorldView(screenX, screenY, 0, 0, width, height);
+        drawer.setWorldView(screenX, screenY, viewX, viewY, displayWidth, displayHeight);
         for (element in elements) {
             element.draw(drawer);
         }
@@ -95,5 +123,28 @@ class World {
 
     public function elementsAtPosition(position:Point) {
         return elementsByPosition[position.x][position.y];
+    }
+
+    public function toWorldPoint(point:Point) {
+        var newPoint = new Point(point.x, point.y);
+        newPoint.x -= screenX + viewX;
+        newPoint.y -= screenY + viewY;
+
+        return if (isPositionInWorld(newPoint)) newPoint else null;
+    }
+
+    /**
+     *  Get the examine at the given world position
+     *  @param position - 
+     */
+    public function getQuickExamine(position:Point) {
+        var help = "";
+        for (element in elementsAtPosition(position)) {
+            if (help != "") help += "\n";
+
+            help += element.getInfo();
+        }
+        
+        return help;
     }
 }

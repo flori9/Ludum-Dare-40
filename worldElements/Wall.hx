@@ -6,4 +6,8 @@ class Wall extends WorldElement {
     override function draw(drawer:Drawer) {
         drawer.setWorldWall(position.x, position.y, color);
     }
+    
+    public override function getInfo():String {
+        return "A wall.";
+    }
 }

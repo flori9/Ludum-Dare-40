@@ -12,7 +12,7 @@ class WorldElement {
         return position;
     }
 
-    var world:World;
+    public var world:World;
     var character:String;
     var color:Int;
 
@@ -39,5 +39,33 @@ class WorldElement {
 
     public function draw(drawer:Drawer) {
         drawer.setWorldCharacter(position.x, position.y, character, color);
+    }
+
+    public function getInfo():String {
+        return "You don't know what this is!";
+    }
+
+    /**
+     *  Whether the world element has an action (triggered by moving at it)
+     *  when the given worldElement moves into it.
+     *  @param worldElement - The world element that moves into the other one
+     */
+    public function hasActionFor(triggeringWorldElement:WorldElement) {
+        return false;
+    }
+
+    public function performActionFor(triggeringWorldElement:WorldElement) {
+        //Nothing by default
+    }
+
+    public function shouldRemove() {
+        return false;
+    }
+
+    /**
+     *  Whether the player wants to know everything that happens to this.
+     */
+    public function isInterestingForPlayer() {
+        return false;
     }
 }

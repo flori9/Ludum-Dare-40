@@ -9,6 +9,12 @@ class Keyboard {
     public static inline var arrowUp = 38;
     public static inline var arrowRight = 39;
     public static inline var arrowDown = 40;
+    public static inline var space = 32;
+    public static inline var enter = 13;
+
+    public function anyConfirm() {
+        return down[space] || down[enter];
+    }
 
     public function new() {
         pressed = [for (i in 0...keys) false];
@@ -38,5 +44,12 @@ class Keyboard {
         for (i in 0...keys) {
             pressed[i] = false;
         }
+    }
+
+    public static function getLetterCode(letter:String) {
+        var code = letter.charCodeAt(0);
+        if (code >= 97 && code <= 122)
+            code -= 97 - 65;
+        return code;
     }
 }
