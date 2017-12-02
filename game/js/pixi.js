@@ -1,6 +1,6 @@
 /*!
  * pixi.js - v4.5.4
- * Compiled Tue, 15 Aug 2017 19:01:34 UTC
+ * Compiled Sat, 02 Dec 2017 09:21:49 UTC
  *
  * pixi.js is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license
@@ -30254,8 +30254,7 @@ var BitmapText = function (_core$Container) {
         var line = 0;
         var lastSpace = -1;
         var lastSpaceWidth = 0;
-        //The number of characters in the string that do not get added to
-        //chars
+        // The number of characters in the string that do not get added to chars
         var charsNotHandled = 0;
         var maxLineHeight = 0;
 
@@ -30436,6 +30435,8 @@ var BitmapText = function (_core$Container) {
         var common = xml.getElementsByTagName('common')[0];
         var res = texture.baseTexture.resolution || _settings2.default.RESOLUTION;
 
+        var monoWidth = parseInt(info.getAttribute('mono'), 10);
+
         data.font = info.getAttribute('face');
         data.size = parseInt(info.getAttribute('size'), 10);
         data.lineHeight = parseInt(common.getAttribute('lineHeight'), 10) / res;
@@ -30458,6 +30459,10 @@ var BitmapText = function (_core$Container) {
                 texture: new core.Texture(texture.baseTexture, textureRect)
 
             };
+
+            var differenceToMono = monoWidth - data.chars[charCode].xAdvance;
+            data.chars[charCode].xAdvance += differenceToMono;
+            //data.chars[charCode].xOffset += Math.floor(differenceToMono / 2);
         }
 
         // parse kernings
@@ -40307,4 +40312,4 @@ global.PIXI = exports; // eslint-disable-line
 });
 
 
-//# failingsourceMappingURL=pixi.js.map
+//# sourceMappingURL=pixi.js.map

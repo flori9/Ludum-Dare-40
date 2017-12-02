@@ -6,6 +6,54 @@ function $extend(from, fields) {
 	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
 	return proto;
 }
+var Drawer = function(stage) {
+	this.stage = stage;
+	this.wallGraphics = new PIXI.Graphics();
+	stage.addChild(this.wallGraphics);
+	this.bitmaps = [];
+	var _g = 0;
+	while(_g < 24) {
+		var i = _g++;
+		this.bitmaps[i] = [];
+		var _g1 = 0;
+		while(_g1 < 50) {
+			var j = _g1++;
+			var bitmap = new PIXI.extras.BitmapText("",{ font : "font", tint : 16777215});
+			this.bitmaps[i][j] = bitmap;
+			bitmap.position.set(8 + j * 15,i * 25);
+			stage.addChild(bitmap);
+		}
+	}
+};
+Drawer.prototype = {
+	clear: function() {
+		var _g = 0;
+		while(_g < 24) {
+			var i = _g++;
+			var _g1 = 0;
+			while(_g1 < 50) {
+				var j = _g1++;
+				this.bitmaps[i][j].text = "";
+			}
+		}
+		this.wallGraphics.clear();
+	}
+	,setCharacter: function(x,y,character,color) {
+		if(color == null) {
+			color = 16777215;
+		}
+		this.bitmaps[y][x].text = character;
+		this.bitmaps[y][x].tint = color;
+	}
+	,setWall: function(x,y,color) {
+		if(color == null) {
+			color = 16777215;
+		}
+		this.wallGraphics.beginFill(color);
+		this.wallGraphics.drawRect(x * 15 + 8,y * 25 + 5,15,25);
+		this.wallGraphics.endFill();
+	}
+};
 var EReg = function(r,opt) {
 	this.r = new RegExp(r,opt.split("u").join(""));
 };
@@ -19,8 +67,17 @@ var Game = function(application,stage,gameRect) {
 	this.application = application;
 	this.stage = stage;
 	this.rect = gameRect;
-	var txt = new PIXI.extras.BitmapText("hsdfad",{ font : "font", tint : 16777215});
-	stage.addChild(txt);
+	this.drawer = new Drawer(stage);
+	this.drawer.clear();
+	this.drawer.setCharacter(0,0,"&",16776960);
+	this.drawer.setCharacter(1,1,"@",16776960);
+	this.drawer.setCharacter(2,1,"*",65280);
+	this.drawer.setCharacter(3,2,"!",65280);
+	this.drawer.setWall(0,1);
+	this.drawer.setWall(1,0);
+	this.drawer.setWall(2,0);
+	this.drawer.setWall(3,0);
+	this.drawer.setWall(3,1);
 };
 Game.prototype = {
 	update: function(timeMod) {
@@ -144,14 +201,15 @@ Main.prototype = $extend(pixi_plugins_app_Application.prototype,{
 		var _gthis = this;
 		this.autoResize = false;
 		this.onUpdate = $bind(this,this.update);
-		this.backgroundColor = 8421504;
+		this.backgroundColor = 0;
 		this.clearBeforeRender = true;
-		this.width = 960;
-		this.height = 600;
+		this.width = 772;
+		this.height = 610;
 		this.initConfig();
 		pixi_plugins_app_Application.prototype.start.call(this);
-		this.gameRect = new common_Rectangle(0,0,960,600);
+		this.gameRect = new common_Rectangle(0,0,772,610);
 		this.loader = new GameLoader(function() {
+			console.log("loaded");
 			_gthis.loader = null;
 			_gthis.game = new Game(_gthis,_gthis.stage,_gthis.gameRect);
 		});
