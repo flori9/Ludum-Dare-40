@@ -51,21 +51,10 @@ class Player extends Focusable {
     }
 
     function showStatusEffects() {
-        game.focus(new ui.Menu(game.drawer, keyboard, world, game, this, "Status Effects", [
-            new ui.MenuItem("Item 1", "Extra description", function() { trace("use item 1"); }),
-            new ui.MenuItem("Item 2", "", function() { trace("use item 2"); }),
-            new ui.MenuItem("Item 3", "Another Extra description", function() { trace("use item 3"); }),
-            new ui.MenuItem("Item 4", "dsf Extra description", function() { trace("use item 3"); }),
-            new ui.MenuItem("Item 5", "3e Extra description", function() { trace("use item 3"); }),
-            new ui.MenuItem("Item 6", "2 Extra description", function() { trace("use item 3"); }),
-            new ui.MenuItem("Item 3a", "Another Extra description", function() { trace("use item 3"); }),
-            new ui.MenuItem("Item 4a", "dsf Extra description", function() { trace("use item 3"); }),
-            new ui.MenuItem("Item 5a", "3e Extra description", function() { trace("use item 3"); }),
-            new ui.MenuItem("Item 6a", "2 Extra description", function() { trace("use item 3"); }),
-            new ui.MenuItem("Item 7a", "2 Extra description", function() { trace("use item 3"); }),
-            new ui.MenuItem("Item 1", "Extra description", function() { trace("use item 1"); }),
-            new ui.MenuItem("Item 2", "", function() { trace("use item 2"); }),
-            new ui.MenuItem("Item 3", "Another Extra description", function() { trace("use item 3"); })
-        ], statusEffectsMenuKey));
+        var statusEffectMenuItems = [for (statusEffect in controllingBody.statusEffects) new ui.MenuItem(statusEffect.name, statusEffect.getText(), function() {})];
+        var menu:ui.Menu;
+        statusEffectMenuItems.push(new ui.MenuItem("Close Menu", "", function() menu.close()));
+        menu = new ui.Menu(game.drawer, keyboard, world, game, this, "Status Effects", statusEffectMenuItems, statusEffectsMenuKey);
+        game.focus(menu);
     }
 }

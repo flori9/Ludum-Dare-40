@@ -342,9 +342,12 @@ Game.prototype = {
 		this.focusedElement.update();
 		this.postUpdate();
 	}
-	,focus: function(element) {
+	,focus: function(element,redrawIfWorld) {
+		if(redrawIfWorld == null) {
+			redrawIfWorld = true;
+		}
 		this.focusedElement = element;
-		if(element.get_showsWorld()) {
+		if(element.get_showsWorld() && redrawIfWorld) {
 			this.drawWorld();
 		}
 	}
@@ -417,6 +420,13 @@ HxOverrides.remove = function(a,obj) {
 	}
 	a.splice(i,1);
 	return true;
+};
+HxOverrides.iter = function(a) {
+	return { cur : 0, arr : a, hasNext : function() {
+		return this.cur < this.arr.length;
+	}, next : function() {
+		return this.arr[this.cur++];
+	}};
 };
 var Keyboard = function() {
 	var _gthis = this;
@@ -938,35 +948,22 @@ Player.prototype = $extend(Focusable.prototype,{
 		}
 	}
 	,showStatusEffects: function() {
-		this.game.focus(new ui_Menu(this.game.drawer,this.keyboard,this.world,this.game,this,"Status Effects",[new ui_MenuItem("Item 1","Extra description",function() {
-			console.log("use item 1");
-		}),new ui_MenuItem("Item 2","",function() {
-			console.log("use item 2");
-		}),new ui_MenuItem("Item 3","Another Extra description",function() {
-			console.log("use item 3");
-		}),new ui_MenuItem("Item 4","dsf Extra description",function() {
-			console.log("use item 3");
-		}),new ui_MenuItem("Item 5","3e Extra description",function() {
-			console.log("use item 3");
-		}),new ui_MenuItem("Item 6","2 Extra description",function() {
-			console.log("use item 3");
-		}),new ui_MenuItem("Item 3a","Another Extra description",function() {
-			console.log("use item 3");
-		}),new ui_MenuItem("Item 4a","dsf Extra description",function() {
-			console.log("use item 3");
-		}),new ui_MenuItem("Item 5a","3e Extra description",function() {
-			console.log("use item 3");
-		}),new ui_MenuItem("Item 6a","2 Extra description",function() {
-			console.log("use item 3");
-		}),new ui_MenuItem("Item 7a","2 Extra description",function() {
-			console.log("use item 3");
-		}),new ui_MenuItem("Item 1","Extra description",function() {
-			console.log("use item 1");
-		}),new ui_MenuItem("Item 2","",function() {
-			console.log("use item 2");
-		}),new ui_MenuItem("Item 3","Another Extra description",function() {
-			console.log("use item 3");
-		})],this.statusEffectsMenuKey));
+		var _g = [];
+		var _g1 = 0;
+		var _g2 = this.controllingBody.statusEffects;
+		while(_g1 < _g2.length) {
+			var statusEffect = _g2[_g1];
+			++_g1;
+			_g.push(new ui_MenuItem(statusEffect.name,statusEffect.getText(),function() {
+			}));
+		}
+		var statusEffectMenuItems = _g;
+		var menu;
+		statusEffectMenuItems.push(new ui_MenuItem("Close Menu","",function() {
+			menu.close();
+		}));
+		menu = new ui_Menu(this.game.drawer,this.keyboard,this.world,this.game,this,"Status Effects",statusEffectMenuItems,this.statusEffectsMenuKey);
+		this.game.focus(menu);
 	}
 	,__class__: Player
 });
@@ -1057,7 +1054,7 @@ var World = function(drawer) {
 	this.elements.push(new worldElements_Wall(this,new common_Point(5,2)));
 	this.elements.push(new worldElements_Wall(this,new common_Point(6,1)));
 	this.elements.push(new worldElements_Wall(this,new common_Point(3,1)));
-	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,2)));
+	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,4)));
 };
 World.__name__ = true;
 World.prototype = {
@@ -1663,6 +1660,15 @@ haxe_ds_ObjectMap.prototype = {
 		this.h[id] = value;
 		this.h.__keys__[id] = key;
 	}
+	,keys: function() {
+		var a = [];
+		for( var key in this.h.__keys__ ) {
+		if(this.h.hasOwnProperty(key)) {
+			a.push(this.h.__keys__[key]);
+		}
+		}
+		return HxOverrides.iter(a);
+	}
 	,__class__: haxe_ds_ObjectMap
 };
 var haxe_ds_StringMap = function() {
@@ -1966,7 +1972,7 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 			this.currentLine += 2;
 			this.drawCurrentLines(this.game.drawer);
 			if(this.currentLine >= this.currentLines.length - 2) {
-				this.game.focus(this.innerFocusable);
+				this.game.focus(this.innerFocusable,false);
 			}
 		}
 	}
@@ -1997,9 +2003,12 @@ var ui_Menu = function(drawer,keyboard,world,game,innerFocusable,title,items,ext
 ui_Menu.__name__ = true;
 ui_Menu.__super__ = Focusable;
 ui_Menu.prototype = $extend(Focusable.prototype,{
-	update: function() {
+	close: function() {
+		this.game.focus(this.innerFocusable);
+	}
+	,update: function() {
 		if(this.keyboard.anyBack() || this.extraCloseKey != null && this.keyboard.pressed[this.extraCloseKey]) {
-			this.game.focus(this.innerFocusable);
+			this.close();
 		} else {
 			var down = this.keyboard.downKey() && !this.keyboard.upKey();
 			var up = this.keyboard.upKey() && !this.keyboard.downKey();
@@ -2166,6 +2175,9 @@ worldElements_Wall.prototype = $extend(worldElements_WorldElement.prototype,{
 	,__class__: worldElements_Wall
 });
 var worldElements_creatures_Creature = function(world,position) {
+	this.aggresiveToPlayer = false;
+	this.followTimeWithoutSee = 3;
+	this.lastSeenCreature = new haxe_ds_ObjectMap();
 	this.speedPoints = 0;
 	this.attackedBy = [];
 	this.creatureFullAttackVerb = "bite";
@@ -2219,6 +2231,14 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			if(statusEffect.ended) {
 				this.statusEffects.splice(i,1);
 			}
+		}
+		var creature = this.lastSeenCreature.keys();
+		while(creature.hasNext()) {
+			var creature1 = creature.next();
+			var _g = creature1;
+			var _g1 = this.lastSeenCreature;
+			var v = _g1.h[_g.__id__] + 1;
+			_g1.set(_g,v);
 		}
 	}
 	,getInfo: function() {
@@ -2304,9 +2324,6 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			return "it";
 		}
 	}
-	,addStatusEffect: function(statusEffect) {
-		this.statusEffects.push(statusEffect);
-	}
 	,__class__: worldElements_creatures_Creature
 });
 var worldElements_creatures_Human = function(world,position) {
@@ -2325,7 +2342,6 @@ worldElements_creatures_Human.prototype = $extend(worldElements_creatures_Creatu
 		this.stats.setAttack(3);
 		this.creatureAttackVerb = "hit";
 		this.creatureFullAttackVerb = "hit";
-		this.addStatusEffect(new worldElements_creatures_statusEffects_Poison(this));
 	}
 	,__class__: worldElements_creatures_Human
 });
@@ -2479,14 +2495,43 @@ worldElements_creatures_movement_BasicMovement.__name__ = true;
 worldElements_creatures_movement_BasicMovement.__super__ = worldElements_creatures_movement_Movement;
 worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements_creatures_movement_Movement.prototype,{
 	move: function(world,creature) {
-		var toPlayer = world.pathfinder.find(creature.position,function(pos) {
-			return common_ArrayExtensions.contains(world.elementsAtPosition(pos),world.player.controllingBody);
-		},false);
-		if(toPlayer.length > 0) {
-			if(toPlayer[0].distance == 1) {
-				creature.attack(world.player.controllingBody);
+		var aggresiveToCreatures = creature.attackedBy.slice();
+		if(creature.aggresiveToPlayer && !common_ArrayExtensions.contains(aggresiveToCreatures,world.player.ownBody)) {
+			aggresiveToCreatures.push(world.player.ownBody);
+		}
+		var isAggresiveToThis = function(elem) {
+			if(js_Boot.__instanceof(elem,worldElements_creatures_Creature)) {
+				return common_ArrayExtensions.contains(aggresiveToCreatures,elem);
 			} else {
-				this.moveInDirection(world,creature,toPlayer[0].inDirection);
+				return false;
+			}
+		};
+		var toTargets = world.pathfinder.find(creature.position,function(pos) {
+			return common_ArrayExtensions.any(world.elementsAtPosition(pos),isAggresiveToThis);
+		},true);
+		var nearestTarget = null;
+		var nearestTargetInfo = null;
+		var nearestTargetDistance = 1000000;
+		var _g = 0;
+		while(_g < toTargets.length) {
+			var toTarget = toTargets[_g];
+			++_g;
+			var target = world.elementsAtPosition(toTarget.point).filter(isAggresiveToThis)[0];
+			var canSee = world.pathfinder.isVisible(creature.position,target.position);
+			if(canSee) {
+				creature.lastSeenCreature.set(target,0);
+			}
+			if(creature.lastSeenCreature.h[target.__id__] <= creature.followTimeWithoutSee) {
+				nearestTarget = target;
+				nearestTargetInfo = toTarget;
+				nearestTargetDistance = toTarget.distance;
+			}
+		}
+		if(nearestTarget != null) {
+			if(nearestTargetInfo.distance == 1) {
+				creature.attack(nearestTarget);
+			} else {
+				this.moveInDirection(world,creature,nearestTargetInfo.inDirection);
 			}
 		}
 	}
@@ -2527,50 +2572,19 @@ worldElements_creatures_stats_CreatureStats.prototype = {
 	}
 	,__class__: worldElements_creatures_stats_CreatureStats
 };
-var worldElements_creatures_statusEffects_StatusEffect = function(creature) {
+var worldElements_creatures_statusEffects_StatusEffect = function() {
 	this.ended = false;
 	this.name = "";
-	this.creature = creature;
-	this.init();
 };
 worldElements_creatures_statusEffects_StatusEffect.__name__ = true;
 worldElements_creatures_statusEffects_StatusEffect.prototype = {
-	init: function() {
+	onTurn: function() {
 	}
-	,onTurn: function() {
+	,getText: function() {
+		return "";
 	}
 	,__class__: worldElements_creatures_statusEffects_StatusEffect
 };
-var worldElements_creatures_statusEffects_Poison = function(creature) {
-	worldElements_creatures_statusEffects_StatusEffect.call(this,creature);
-};
-worldElements_creatures_statusEffects_Poison.__name__ = true;
-worldElements_creatures_statusEffects_Poison.__super__ = worldElements_creatures_statusEffects_StatusEffect;
-worldElements_creatures_statusEffects_Poison.prototype = $extend(worldElements_creatures_statusEffects_StatusEffect.prototype,{
-	init: function() {
-		this.name = "Poisoned";
-		this.hitEvery = 3;
-		this.hitInTurns = 1;
-		this.hitsUntilEnd = 4;
-	}
-	,onTurn: function() {
-		if(this.hitInTurns <= 0) {
-			this.hitsUntilEnd -= 1;
-			this.hitInTurns = this.hitEvery;
-			if(this.creature.isInterestingForPlayer()) {
-				this.creature.world.info.addInfo("Poison dealt 1 damage to " + this.creature.getNameToUse() + ".");
-			}
-			this.creature.stats.hp -= 1;
-			if(this.hitsUntilEnd <= 0) {
-				this.ended = true;
-				this.creature.world.info.addInfo("Then, " + this.creature.getReferenceToUse() + " was no longer poisoned.");
-			}
-		} else {
-			this.hitInTurns -= 1;
-		}
-	}
-	,__class__: worldElements_creatures_statusEffects_Poison
-});
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }
 String.prototype.__class__ = String;

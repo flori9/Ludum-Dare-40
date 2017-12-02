@@ -44,10 +44,10 @@ class Game {
         postUpdate();
 	}
 
-    public function focus(element:Focusable) {
+    public function focus(element:Focusable, redrawIfWorld:Bool = true) {
         focusedElement = element;
 
-        if (element.showsWorld)
+        if (element.showsWorld && redrawIfWorld)
             drawWorld();
     }
 

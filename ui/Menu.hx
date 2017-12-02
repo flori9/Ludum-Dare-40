@@ -30,9 +30,13 @@ class Menu extends Focusable {
         draw();
     }
 
+    public function close() {
+        game.focus(innerFocusable);
+    }
+
     public override function update() {
         if (keyboard.anyBack() || (extraCloseKey != null && keyboard.pressed[extraCloseKey])) {
-            game.focus(innerFocusable);
+            close();
         } else {
             var down = keyboard.downKey() && ! keyboard.upKey();
             var up = keyboard.upKey() && ! keyboard.downKey();

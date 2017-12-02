@@ -44,7 +44,7 @@ class World {
         elements.push(new Wall(this, new Point(5, 2)));
         elements.push(new Wall(this, new Point(6, 1)));
         elements.push(new Wall(this, new Point(3, 1)));
-        elements.push(new worldElements.creatures.Rat(this, new Point(5, 2)));
+        elements.push(new worldElements.creatures.Rat(this, new Point(5, 4)));
     }
 
     public function addElement(element:WorldElement) {

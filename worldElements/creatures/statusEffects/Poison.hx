@@ -22,10 +22,14 @@ class Poison extends StatusEffect {
         	creature.stats.hp -= 1;
             if (hitsUntilEnd <= 0) {
                 ended = true;
-                creature.world.info.addInfo('Then, ${creature.getReferenceToUse()} was no longer poisoned.');
+                creature.world.info.addInfo('Then, ${creature.getReferenceToUse()} ${creature.getWereOrWas()} no longer poisoned.');
             }
         }
         else
             hitInTurns -= 1;
+    }
+
+    public override function getText() {
+        return 'Deals one damage every ${hitEvery + 1} turns. Next damage in ${hitInTurns + 1} turns. Ends after $hitsUntilEnd more hits.';
     }
 }

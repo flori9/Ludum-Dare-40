@@ -53,7 +53,7 @@ class InfoDisplay extends Focusable {
             drawCurrentLines(game.drawer);
 
             if (currentLine >= currentLines.length - 2)
-                game.focus(innerFocusable);
+                game.focus(innerFocusable, false);
         }
     }
 

@@ -21,7 +21,20 @@ class Creature extends WorldElement {
     //Creatures may move until they have less speedpoints than the player.
     var speedPoints:Int = 0;
 
-    var statusEffects:Array<StatusEffect>;
+    public var statusEffects:Array<StatusEffect>;
+
+    /**
+     *  when we last saw things we want to follow
+     */
+    public var lastSeenCreature:Map<Creature, Int> = new Map<Creature, Int>();
+    /**
+     *  How long we will perfectly follow without seeing
+     */
+    public var followTimeWithoutSee = 3;
+    /**
+     *  Whether we're always aggresive towards the player
+     */
+    public var aggresiveToPlayer = false;
 
     public override function init() {
         movement = new BasicMovement();
@@ -61,6 +74,10 @@ class Creature extends WorldElement {
             statusEffect.onTurn();
             if (statusEffect.ended)
                 statusEffects.splice(i, 1);
+        }
+
+        for (creature in lastSeenCreature.keys()) {
+            lastSeenCreature[creature] += 1;
         }
     }
 

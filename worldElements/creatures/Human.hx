@@ -13,6 +13,5 @@ class Human extends Creature {
 
         creatureAttackVerb = "hit";
         creatureFullAttackVerb = "hit";
-        addStatusEffect(new worldElements.creatures.statusEffects.Poison(this));
     }
 }
