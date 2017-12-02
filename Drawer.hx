@@ -13,6 +13,15 @@ class Drawer {
     public static inline var singleWidth = 15;
     public static inline var singleHeight = 25;
     
+    static inline var leftPadding = 5;
+
+    var screenX:Int;
+    var screenY:Int;
+    var worldX:Int;
+    var worldY:Int;
+    var worldWidth:Int;
+    var worldHeight:Int;
+
     public function new(stage:Container) {
         this.stage = stage;
         
@@ -28,7 +37,7 @@ class Drawer {
             {
                 var bitmap = new BitmapText("", {font:"font", tint: 0xffffff});
                 bitmaps[i][j] = bitmap;
-                bitmap.position.set(8 + j * singleWidth, i * singleHeight);
+                bitmap.position.set(leftPadding + j * singleWidth, i * singleHeight);
                 stage.addChild(bitmap);
             }
         }
@@ -44,6 +53,27 @@ class Drawer {
         wallGraphics.clear();
     }
     
+    public function setWorldView(screenX, screenY, worldX, worldY, width, height) {
+        this.screenX = screenX;
+        this.screenY = screenY;
+        this.worldX = worldX;
+        this.worldY = worldY;
+        this.worldWidth = width;
+        this.worldHeight = height;
+    }
+
+    public function setWorldCharacter(x, y, character, color = 0xffffff) {
+        if (x >= worldX && y >= worldY && x < worldX + worldWidth && y < worldY + worldHeight) {
+            setCharacter(x - worldX + screenX, y - worldY + screenY, character, color);
+        }
+    }
+
+    public function setWorldWall(x, y, color = 0xffffff) {
+        if (x >= worldX && y >= worldY && x < worldX + worldWidth && y < worldY + worldHeight) {
+            setWall(x - worldX + screenX, y - worldY + screenY, color);
+        }
+    }
+    
     public function setCharacter(x, y, character, color = 0xffffff) {
         bitmaps[y][x].text = character;
         bitmaps[y][x].tint = color;
@@ -51,7 +81,7 @@ class Drawer {
     
     public function setWall(x, y, color = 0xffffff) {
         wallGraphics.beginFill(color);
-        wallGraphics.drawRect(x * singleWidth + 8, y * singleHeight + 5, singleWidth, singleHeight);
+        wallGraphics.drawRect(x * singleWidth + leftPadding, y * singleHeight + 5, singleWidth, singleHeight);
         wallGraphics.endFill();
     }
 }

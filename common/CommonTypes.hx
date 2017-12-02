@@ -93,3 +93,5 @@ class FPoint {
 }
 
 typedef Padding = {top:Int, right:Int, bottom:Int, left:Int}
+
+enum Direction { Left; Right; Up; Down; }

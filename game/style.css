@@ -4,10 +4,16 @@ html, body, canvas {
 }
 
 body {
-	background-color: black;
+	background-color: #303030;
 }
 
 canvas {
-    display: block;
-    position: absolute;
+    padding: 0;
+    margin: auto;
+    display: block !important;
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
 }

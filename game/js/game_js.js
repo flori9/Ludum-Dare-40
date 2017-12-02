@@ -20,7 +20,7 @@ var Drawer = function(stage) {
 			var j = _g1++;
 			var bitmap = new PIXI.extras.BitmapText("",{ font : "font", tint : 16777215});
 			this.bitmaps[i][j] = bitmap;
-			bitmap.position.set(8 + j * 15,i * 25);
+			bitmap.position.set(5 + j * 15,i * 25);
 			stage.addChild(bitmap);
 		}
 	}
@@ -50,7 +50,7 @@ Drawer.prototype = {
 			color = 16777215;
 		}
 		this.wallGraphics.beginFill(color);
-		this.wallGraphics.drawRect(x * 15 + 8,y * 25 + 5,15,25);
+		this.wallGraphics.drawRect(x * 15 + 5,y * 25 + 5,15,25);
 		this.wallGraphics.endFill();
 	}
 };
@@ -68,6 +68,8 @@ var Game = function(application,stage,gameRect) {
 	this.stage = stage;
 	this.rect = gameRect;
 	this.drawer = new Drawer(stage);
+	this.keyboard = new Keyboard();
+	this.player = new Player(this.keyboard);
 	this.drawer.clear();
 	this.drawer.setCharacter(0,0,"&",16776960);
 	this.drawer.setCharacter(1,1,"@",16776960);
@@ -81,6 +83,12 @@ var Game = function(application,stage,gameRect) {
 };
 Game.prototype = {
 	update: function(timeMod) {
+		this.keyboard.update();
+		this.player.update();
+		this.postUpdate();
+	}
+	,postUpdate: function() {
+		this.keyboard.postUpdate();
 	}
 };
 var GameLoader = function(then) {
@@ -108,6 +116,47 @@ HxOverrides.substr = function(s,pos,len) {
 		}
 	}
 	return s.substr(pos,len);
+};
+var Keyboard = function() {
+	var _gthis = this;
+	var _g = [];
+	var _g1 = 0;
+	while(_g1 < 256) {
+		var i = _g1++;
+		_g.push(false);
+	}
+	this.pressed = _g;
+	var _g11 = [];
+	var _g2 = 0;
+	while(_g2 < 256) {
+		var i1 = _g2++;
+		_g11.push(false);
+	}
+	this.down = _g11;
+	window.addEventListener("keydown",function(event) {
+		var keyCode = event.keyCode;
+		if(keyCode < 256) {
+			_gthis.pressed[keyCode] = true;
+			_gthis.down[keyCode] = true;
+		}
+	},false);
+	window.addEventListener("keyup",function(event1) {
+		var keyCode1 = event1.keyCode;
+		if(keyCode1 < 256) {
+			_gthis.down[keyCode1] = false;
+		}
+	},false);
+};
+Keyboard.prototype = {
+	update: function() {
+	}
+	,postUpdate: function() {
+		var _g = 0;
+		while(_g < 256) {
+			var i = _g++;
+			this.pressed[i] = false;
+		}
+	}
 };
 var pixi_plugins_app_Application = function() {
 	this._animationFrameId = null;
@@ -203,11 +252,11 @@ Main.prototype = $extend(pixi_plugins_app_Application.prototype,{
 		this.onUpdate = $bind(this,this.update);
 		this.backgroundColor = 0;
 		this.clearBeforeRender = true;
-		this.width = 772;
+		this.width = 766;
 		this.height = 610;
 		this.initConfig();
 		pixi_plugins_app_Application.prototype.start.call(this);
-		this.gameRect = new common_Rectangle(0,0,772,610);
+		this.gameRect = new common_Rectangle(0,0,766,610);
 		this.loader = new GameLoader(function() {
 			console.log("loaded");
 			_gthis.loader = null;
@@ -232,6 +281,16 @@ Main.prototype = $extend(pixi_plugins_app_Application.prototype,{
 		}
 	}
 });
+var Player = function(keyboard) {
+	this.keyboard = keyboard;
+};
+Player.prototype = {
+	update: function() {
+		if(this.keyboard.pressed[37]) {
+			console.log("leftArrow");
+		}
+	}
+};
 var common_Rectangle = function(x,y,width,height) {
 	this.x = x;
 	this.y = y;
