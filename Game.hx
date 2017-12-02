@@ -20,7 +20,12 @@ class Game {
         this.rect = gameRect;
         this.drawer = new Drawer(stage);
         this.keyboard = new Keyboard();
-        player = new Player(keyboard, world);
+        this.world = new World(drawer);
+
+        player = new Player(keyboard, world, this);
+
+        drawer.clear();
+        world.draw();
     }
 	
 	public function update(timeMod:Float) {

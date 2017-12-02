@@ -5,17 +5,32 @@ class WorldElement {
     function get_isBlocking() return false;
     public var position(default, set):Point;
     function set_position(newPosition:Point) {
-        world.removeFromElementsAtPosition(this);
+        if (position != null)
+            world.removeFromElementsAtPosition(this, position);
         position = newPosition;
-        world.addToElementsAtPosition(this);
+        world.addToElementsAtPosition(this, newPosition);
         return position;
     }
 
     var world:World;
+    var character:String;
+    var color:Int;
 
     public function new(world:World, position:Point) {
         this.world = world;
         this.position = position;
+        character = "";
+        color = Drawer.colorToInt(White);
+
+        init();
+    }
+
+    public function init() {
+
+    }
+
+    public function preUpdate() {
+
     }
 
     public function update() {
@@ -23,6 +38,6 @@ class WorldElement {
     }
 
     public function draw(drawer:Drawer) {
-
+        drawer.setWorldCharacter(position.x, position.y, character, color);
     }
 }

@@ -18,5 +18,13 @@ class Movement {
 
     public function move(world:World, creature:Creature) {
         //Do a single movement step for the given creature
+        
+    }
+
+    public function moveInDirection(world:World, creature:Creature, direction:Direction) {
+        var newPosition = world.positionInDirection(creature.position, direction);
+        if (newPosition != null) {
+            creature.position = newPosition;
+        }
     }
 }

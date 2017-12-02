@@ -11,32 +11,38 @@ class World {
     static inline var screenX = 0;
     static inline var screenY = 1;
 
-    public var width = 20;
-    public var height = 20;
+    public var width = 50;
+    public var height = 23;
 
     public function new(drawer:Drawer) {
+        this.drawer = drawer;
+
         elements = new Array<WorldElement>();
         elementsByPosition = [for (i in 0...width)
             [for (j in 0...height) []]];
-
+        
         elements.push(new Wall(this, new Point(0, 0)));
         elements.push(new Wall(this, new Point(1, 0)));
+    }
+
+    public function addElement(element:WorldElement) {
+        elements.push(element);
     }
 
     /**
      *  After setting any position, do this
      *  @param element - 
      */
-    public function addToElementsAtPosition(element:WorldElement) {
-        elementsByPosition[element.position.x][element.position.y].push(element);
+    public function addToElementsAtPosition(element:WorldElement, position:Point) {
+        elementsByPosition[position.x][position.y].push(element);
     }
 
     /**
      *  Before anything can move, do this
      *  @param element - 
      */
-    public function removeFromElementsAtPosition(element:WorldElement) {
-        elementsByPosition[element.position.x][element.position.y].remove(element);
+    public function removeFromElementsAtPosition(element:WorldElement, position:Point) {
+        elementsByPosition[position.x][position.y].remove(element);
     }
 
     /**
