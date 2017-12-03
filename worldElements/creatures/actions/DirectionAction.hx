@@ -12,12 +12,28 @@ class DirectionAction extends CreatureAction {
         return elementsInDirection().any(function(elem) return canUseOnElement(elem));
     }
 
+    public override function canUseOnCreatureFrom(creatures:Array<Creature>) {
+        return elementsInDirection().any(function(elem) return Std.is(elem, Creature) && creatures.contains(cast elem) && canUseOnElement(elem));
+    }
+
+    public override function tryPossibleParameters(targets:Array<Creature>):Bool {
+        //Tries for all possible parameters whether they would work, returns whether one succeeded
+        var options = [Left, Right, Up, Down];
+        for (option in options) {
+            setParameter(option);
+            if (canUseOnCreatureFrom(targets)) {
+                use();
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function canUseOnElement(elementHere:WorldElement) {
         return false;
     }
 
     public override function use() {
-        //Nothing by default
         var elems = elementsInDirection();
         for (elem in elems) {
             if (canUseOnElement(elem)) {

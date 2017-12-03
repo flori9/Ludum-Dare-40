@@ -17,6 +17,7 @@ class Creature extends WorldElement {
     public var attackedBy:Array<Creature> = [];
 
     var basicAttack:DirectionalAttack;
+    public var actions:Array<CreatureAction>;
 
     //Creatures may move until they have less speedpoints than the player.
     var speedPoints:Int = 0;
@@ -41,6 +42,8 @@ class Creature extends WorldElement {
         movement = new BasicMovement();
         stats = new CreatureStats(1, 1);
         basicAttack = new DirectionalAttack(this);
+        actions = [];
+        actions.push(basicAttack);
         attackedBy = [];
         statusEffects = new Array<StatusEffect>();
     }

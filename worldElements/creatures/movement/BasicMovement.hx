@@ -32,8 +32,9 @@ class BasicMovement extends Movement {
         }
 
         if (nearestTarget != null) {
-            if (nearestTargetInfo.distance == 1)
-                creature.attack(nearestTarget);
+            if (canUseAnyAbility(creature, aggresiveToCreatures)) {
+                //We did an ability!
+            }
             else
                 moveInDirection(world, creature, nearestTargetInfo.inDirection);
         } else {
@@ -52,5 +53,16 @@ class BasicMovement extends Movement {
                 } else creature.wanderTo = null;
             }
         }
+    }
+
+    public function canUseAnyAbility(creature:Creature, aggresiveToCreatures:Array<Creature>):Bool {
+        //getPriority
+        var sortedActions = creature.actions.copy();
+        sortedActions.sort(function (x, y) return y.getPriority() - x.getPriority());
+        for (ability in sortedActions) {
+            if (creature.stats.ap >= ability.actionPoints && ability.getPriority() >= 0)
+                return ability.tryPossibleParameters(aggresiveToCreatures);
+        }
+        return false;
     }
 }

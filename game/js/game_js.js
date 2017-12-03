@@ -1024,6 +1024,9 @@ StringTools.rtrim = function(s) {
 StringTools.trim = function(s) {
 	return StringTools.ltrim(StringTools.rtrim(s));
 };
+StringTools.replace = function(s,sub,by) {
+	return s.split(sub).join(by);
+};
 var World = function(drawer) {
 	this.viewY = 0;
 	this.viewX = 0;
@@ -2220,6 +2223,8 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 		this.movement = new worldElements_creatures_movement_BasicMovement();
 		this.stats = new worldElements_creatures_stats_CreatureStats(1,1);
 		this.basicAttack = new worldElements_creatures_actions_DirectionalAttack(this);
+		this.actions = [];
+		this.actions.push(this.basicAttack);
 		this.attackedBy = [];
 		this.statusEffects = [];
 	}
@@ -2347,6 +2352,16 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			return "it";
 		}
 	}
+	,getWereOrWas: function() {
+		if(this.world.player.ownBody == this || this.world.player.controllingBody == this) {
+			return "were";
+		} else {
+			return "was";
+		}
+	}
+	,addStatusEffect: function(statusEffect) {
+		this.statusEffects.push(statusEffect);
+	}
 	,__class__: worldElements_creatures_Creature
 });
 var worldElements_creatures_Human = function(world,position) {
@@ -2383,8 +2398,121 @@ worldElements_creatures_Rat.prototype = $extend(worldElements_creatures_Creature
 		this.stats.setMaxAP(1);
 		this.stats.setAttack(1);
 		this.stats.speed = 50;
+		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_Poison,function(c) {
+			return new worldElements_creatures_statusEffects_Poison(c);
+		},"{subject} poisoned {object}!",1));
 	}
 	,__class__: worldElements_creatures_Rat
+});
+var worldElements_creatures_actions_CreatureAction = function(creature) {
+	this.creature = creature;
+};
+worldElements_creatures_actions_CreatureAction.__name__ = true;
+worldElements_creatures_actions_CreatureAction.prototype = {
+	get_actionPoints: function() {
+		return 0;
+	}
+	,tryPossibleParameters: function(targets) {
+		return false;
+	}
+	,getPriority: function() {
+		return this.get_actionPoints();
+	}
+	,__class__: worldElements_creatures_actions_CreatureAction
+};
+var worldElements_creatures_actions_DirectionAction = function(creature) {
+	this.direction = null;
+	worldElements_creatures_actions_CreatureAction.call(this,creature);
+};
+worldElements_creatures_actions_DirectionAction.__name__ = true;
+worldElements_creatures_actions_DirectionAction.__super__ = worldElements_creatures_actions_CreatureAction;
+worldElements_creatures_actions_DirectionAction.prototype = $extend(worldElements_creatures_actions_CreatureAction.prototype,{
+	setParameter: function(direction) {
+		this.direction = direction;
+	}
+	,canUseOnCreatureFrom: function(creatures) {
+		var _gthis = this;
+		return common_ArrayExtensions.any(this.elementsInDirection(),function(elem) {
+			if(js_Boot.__instanceof(elem,worldElements_creatures_Creature) && common_ArrayExtensions.contains(creatures,elem)) {
+				return _gthis.canUseOnElement(elem);
+			} else {
+				return false;
+			}
+		});
+	}
+	,tryPossibleParameters: function(targets) {
+		var options = [common_Direction.Left,common_Direction.Right,common_Direction.Up,common_Direction.Down];
+		var _g = 0;
+		while(_g < options.length) {
+			var option = options[_g];
+			++_g;
+			this.setParameter(option);
+			if(this.canUseOnCreatureFrom(targets)) {
+				this["use"]();
+				return true;
+			}
+		}
+		return false;
+	}
+	,canUseOnElement: function(elementHere) {
+		return false;
+	}
+	,'use': function() {
+		var elems = this.elementsInDirection();
+		var _g = 0;
+		while(_g < elems.length) {
+			var elem = elems[_g];
+			++_g;
+			if(this.canUseOnElement(elem)) {
+				this.useOnElement(elem);
+				break;
+			}
+		}
+	}
+	,useOnElement: function(elementHere) {
+	}
+	,elementsInDirection: function() {
+		var positionHere = this.creature.world.positionInDirection(this.creature.position,this.direction);
+		if(positionHere != null) {
+			return this.creature.world.elementsAtPosition(positionHere);
+		}
+		return [];
+	}
+	,__class__: worldElements_creatures_actions_DirectionAction
+});
+var worldElements_creatures_actions_AfflictStatusEffect = function(creature,statusEffectType,makeStatusEffect,onAfflictText,ap) {
+	worldElements_creatures_actions_DirectionAction.call(this,creature);
+	this.statusEffectType = statusEffectType;
+	this.makeStatusEffect = makeStatusEffect;
+	this.onAfflictText = onAfflictText;
+	this.ap = ap;
+};
+worldElements_creatures_actions_AfflictStatusEffect.__name__ = true;
+worldElements_creatures_actions_AfflictStatusEffect.__super__ = worldElements_creatures_actions_DirectionAction;
+worldElements_creatures_actions_AfflictStatusEffect.prototype = $extend(worldElements_creatures_actions_DirectionAction.prototype,{
+	get_actionPoints: function() {
+		return this.ap;
+	}
+	,canUseOnElement: function(elementHere) {
+		var _gthis = this;
+		if(js_Boot.__instanceof(elementHere,worldElements_creatures_Creature)) {
+			return !common_ArrayExtensions.any(elementHere.statusEffects,function(se) {
+				return js_Boot.__instanceof(se,_gthis.statusEffectType);
+			});
+		} else {
+			return false;
+		}
+	}
+	,useOnElement: function(elementHere) {
+		var creatureHere = elementHere;
+		creatureHere.addStatusEffect(this.makeStatusEffect(creatureHere));
+		if(this.creature.isInterestingForPlayer() || creatureHere.isInterestingForPlayer()) {
+			var tmp = this.creature.world.info;
+			var str = StringTools.replace(StringTools.replace(this.onAfflictText,"{subject}",this.creature.getNameToUse()),"object",creatureHere.getNameToUse());
+			tmp.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
+		}
+	}
+	,__class__: worldElements_creatures_actions_AfflictStatusEffect
 });
 var worldElements_creatures_actions_AttackResult = { __ename__ : true, __constructs__ : ["Damage","Block"] };
 worldElements_creatures_actions_AttackResult.Damage = function(damage) { var $x = ["Damage",0,damage]; $x.__enum__ = worldElements_creatures_actions_AttackResult; $x.toString = $estr; return $x; };
@@ -2414,28 +2542,16 @@ worldElements_creatures_actions_AttackCalculator.attackStandardResults = functio
 		attackedCreature.attackedBy.push(attackingCreature);
 	}
 };
-var worldElements_creatures_actions_CreatureAction = function(creature) {
-	this.creature = creature;
-};
-worldElements_creatures_actions_CreatureAction.__name__ = true;
-worldElements_creatures_actions_CreatureAction.prototype = {
-	__class__: worldElements_creatures_actions_CreatureAction
-};
-var worldElements_creatures_actions_DirectionAction = function(creature) {
-	worldElements_creatures_actions_CreatureAction.call(this,creature);
-};
-worldElements_creatures_actions_DirectionAction.__name__ = true;
-worldElements_creatures_actions_DirectionAction.__super__ = worldElements_creatures_actions_CreatureAction;
-worldElements_creatures_actions_DirectionAction.prototype = $extend(worldElements_creatures_actions_CreatureAction.prototype,{
-	__class__: worldElements_creatures_actions_DirectionAction
-});
 var worldElements_creatures_actions_DirectionalAttack = function(creature) {
 	worldElements_creatures_actions_DirectionAction.call(this,creature);
 };
 worldElements_creatures_actions_DirectionalAttack.__name__ = true;
 worldElements_creatures_actions_DirectionalAttack.__super__ = worldElements_creatures_actions_DirectionAction;
 worldElements_creatures_actions_DirectionalAttack.prototype = $extend(worldElements_creatures_actions_DirectionAction.prototype,{
-	useOnElement: function(elementHere) {
+	canUseOnElement: function(elementHere) {
+		return js_Boot.__instanceof(elementHere,worldElements_creatures_Creature);
+	}
+	,useOnElement: function(elementHere) {
 		var creatureHere = elementHere;
 		var result = worldElements_creatures_actions_AttackCalculator.basicAttack(this.creature,creatureHere);
 		if(this.creature.isInterestingForPlayer() || elementHere.isInterestingForPlayer()) {
@@ -2551,9 +2667,7 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 			}
 		}
 		if(nearestTarget != null) {
-			if(nearestTargetInfo.distance == 1) {
-				creature.attack(nearestTarget);
-			} else {
+			if(!this.canUseAnyAbility(creature,aggresiveToCreatures)) {
 				this.moveInDirection(world,creature,nearestTargetInfo.inDirection);
 			}
 		} else {
@@ -2584,6 +2698,21 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 				}
 			}
 		}
+	}
+	,canUseAnyAbility: function(creature,aggresiveToCreatures) {
+		var sortedActions = creature.actions.slice();
+		sortedActions.sort(function(x,y) {
+			return y.getPriority() - x.getPriority();
+		});
+		var _g = 0;
+		while(_g < sortedActions.length) {
+			var ability = sortedActions[_g];
+			++_g;
+			if(creature.stats.ap >= ability.get_actionPoints() && ability.getPriority() >= 0) {
+				return ability.tryPossibleParameters(aggresiveToCreatures);
+			}
+		}
+		return false;
 	}
 	,__class__: worldElements_creatures_movement_BasicMovement
 });
@@ -2631,19 +2760,56 @@ worldElements_creatures_stats_CreatureStats.prototype = {
 	}
 	,__class__: worldElements_creatures_stats_CreatureStats
 };
-var worldElements_creatures_statusEffects_StatusEffect = function() {
+var worldElements_creatures_statusEffects_StatusEffect = function(creature) {
 	this.ended = false;
 	this.name = "";
+	this.creature = creature;
+	this.init();
 };
 worldElements_creatures_statusEffects_StatusEffect.__name__ = true;
 worldElements_creatures_statusEffects_StatusEffect.prototype = {
-	onTurn: function() {
+	init: function() {
+	}
+	,onTurn: function() {
 	}
 	,getText: function() {
 		return "";
 	}
 	,__class__: worldElements_creatures_statusEffects_StatusEffect
 };
+var worldElements_creatures_statusEffects_Poison = function(creature) {
+	worldElements_creatures_statusEffects_StatusEffect.call(this,creature);
+};
+worldElements_creatures_statusEffects_Poison.__name__ = true;
+worldElements_creatures_statusEffects_Poison.__super__ = worldElements_creatures_statusEffects_StatusEffect;
+worldElements_creatures_statusEffects_Poison.prototype = $extend(worldElements_creatures_statusEffects_StatusEffect.prototype,{
+	init: function() {
+		this.name = "Poisoned";
+		this.hitEvery = 3;
+		this.hitInTurns = 1;
+		this.hitsUntilEnd = 4;
+	}
+	,onTurn: function() {
+		if(this.hitInTurns <= 0) {
+			this.hitsUntilEnd -= 1;
+			this.hitInTurns = this.hitEvery;
+			if(this.creature.isInterestingForPlayer()) {
+				this.creature.world.info.addInfo("Poison dealt 1 damage to " + this.creature.getNameToUse() + ".");
+			}
+			this.creature.stats.hp -= 1;
+			if(this.hitsUntilEnd <= 0) {
+				this.ended = true;
+				this.creature.world.info.addInfo("Then, " + this.creature.getReferenceToUse() + " " + this.creature.getWereOrWas() + " no longer poisoned.");
+			}
+		} else {
+			this.hitInTurns -= 1;
+		}
+	}
+	,getText: function() {
+		return "Deals one damage every " + (this.hitEvery + 1) + " turns. Next damage in " + (this.hitInTurns + 1) + " turns. Ends after " + this.hitsUntilEnd + " more hits.";
+	}
+	,__class__: worldElements_creatures_statusEffects_Poison
+});
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }
 String.prototype.__class__ = String;
