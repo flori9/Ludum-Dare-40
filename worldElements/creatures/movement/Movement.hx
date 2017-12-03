@@ -6,6 +6,8 @@ import worldElements.creatures.Creature;
  *  The way things move.
  */
 class Movement {
+    public var autoMove = true;
+
     public function canMove(world:World, creature:Creature, direction:Direction) {
         //Whether the given creature could move in the given direction
         var newPosition = world.positionInDirection(creature.position, direction);

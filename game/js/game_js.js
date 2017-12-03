@@ -941,15 +941,12 @@ Pathfinder.prototype = {
 var Player = function(keyboard,world,game) {
 	Focusable.call(this,keyboard,world,game);
 	this.ownBody = new worldElements_creatures_Human(world,new common_Point(1,1));
-	this.ownBody.movement = new worldElements_creatures_movement_NoMovement();
+	this.ownBody.movement.autoMove = false;
 	world.addElement(this.ownBody);
 	this.controllingBody = this.ownBody;
 	this.statusEffectsMenuKey = Keyboard.getLetterCode("e");
 	this.actionsKey = 16;
 	this.waitKey = 190;
-	this.ownBody.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this.ownBody,worldElements_creatures_statusEffects_Poison,function(c) {
-		return new worldElements_creatures_statusEffects_Poison(c);
-	},"{subject} poisoned {object}!",1,"Poisonous Strike","Poison an enemy next to you."));
 	this.ownBody.actions.push(new worldElements_creatures_actions_Dash(this.ownBody));
 	this.ownBody.actions.push(new worldElements_creatures_actions_TakeOverEnemy(this.ownBody));
 };
@@ -960,13 +957,12 @@ Player.prototype = $extend(Focusable.prototype,{
 		return true;
 	}
 	,afterTakeover: function() {
-		this.controllingBody.originalMovement = this.controllingBody.movement;
-		this.controllingBody.movement = new worldElements_creatures_movement_NoMovement();
+		this.controllingBody.movement.autoMove = false;
 		this.controllingBody.actions.push(new worldElements_creatures_actions_StopTakeOver(this.ownBody));
 	}
 	,stopTakeover: function() {
 		if(this.controllingBody.stats.hp > 0) {
-			this.controllingBody.movement = this.controllingBody.originalMovement;
+			this.controllingBody.movement.autoMove = true;
 			var stopTakeOverAction = Lambda.find(this.controllingBody.actions,function(ac) {
 				return js_Boot.__instanceof(ac,worldElements_creatures_actions_StopTakeOver);
 			});
@@ -1028,8 +1024,7 @@ Player.prototype = $extend(Focusable.prototype,{
 			this.controllingBody = this.ownBody;
 			this.world.addElement(new worldElements_PlayerBody(this.world,new common_Point(this.ownBody.position.x,this.ownBody.position.y)));
 			this.game.info.addInfo("You are dead! Press Space or Enter to restart.");
-		}
-		if(this.controllingBody.stats.hp <= 0) {
+		} else if(this.controllingBody.stats.hp <= 0) {
 			this.stopTakeover();
 			this.game.info.addInfo("You found yourself back in your own body.");
 		}
@@ -2309,7 +2304,7 @@ dungeonGeneration_DungeonGenerator.prototype = {
 	}
 	,addMonsters: function(room) {
 		var points = 2 + common_Random.getInt(this.floor);
-		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1}];
+		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1},{ type : worldElements_creatures_ManeatingPlant, points : 1}];
 		var _g = 0;
 		while(_g < 100) {
 			var i = _g++;
@@ -3359,6 +3354,29 @@ worldElements_creatures_Human.prototype = $extend(worldElements_creatures_Creatu
 	}
 	,__class__: worldElements_creatures_Human
 });
+var worldElements_creatures_ManeatingPlant = function(world,position) {
+	worldElements_creatures_Creature.call(this,world,position);
+};
+worldElements_creatures_ManeatingPlant.__name__ = true;
+worldElements_creatures_ManeatingPlant.__super__ = worldElements_creatures_Creature;
+worldElements_creatures_ManeatingPlant.prototype = $extend(worldElements_creatures_Creature.prototype,{
+	init: function() {
+		worldElements_creatures_Creature.prototype.init.call(this);
+		this.color = 6356832;
+		this.character = "p";
+		this.creatureTypeName = "man-eating plant";
+		this.stats.setMaxHP(7);
+		this.stats.setMaxAP(3);
+		this.stats.setAttack(3);
+		this.stats.speed = 100;
+		this.creatureAttackVerb = "grabbed";
+		this.creatureFullAttackVerb = "grab";
+		this.aggressiveToPlayerIfNear = true;
+		this.aggressiveNearDistance = 1;
+		this.movement = new worldElements_creatures_movement_StillMovement();
+	}
+	,__class__: worldElements_creatures_ManeatingPlant
+});
 var worldElements_creatures_Rat = function(world,position) {
 	worldElements_creatures_Creature.call(this,world,position);
 };
@@ -3747,7 +3765,9 @@ worldElements_creatures_actions_TakeOverEnemy.prototype = $extend(worldElements_
 	}
 	,__class__: worldElements_creatures_actions_TakeOverEnemy
 });
-var worldElements_creatures_movement_Movement = function() { };
+var worldElements_creatures_movement_Movement = function() {
+	this.autoMove = true;
+};
 worldElements_creatures_movement_Movement.__name__ = true;
 worldElements_creatures_movement_Movement.prototype = {
 	canMove: function(world,creature,direction) {
@@ -3796,11 +3816,12 @@ worldElements_creatures_movement_Movement.prototype = {
 	,__class__: worldElements_creatures_movement_Movement
 };
 var worldElements_creatures_movement_BasicMovement = function() {
+	worldElements_creatures_movement_Movement.call(this);
 };
 worldElements_creatures_movement_BasicMovement.__name__ = true;
 worldElements_creatures_movement_BasicMovement.__super__ = worldElements_creatures_movement_Movement;
 worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements_creatures_movement_Movement.prototype,{
-	move: function(world,creature) {
+	getAggresiveTo: function(world,creature) {
 		var aggressiveToCreatures = creature.attackedBy.slice();
 		var tmp;
 		var tmp1;
@@ -3835,6 +3856,13 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 				aggressiveToCreatures.push(worldCreature);
 			}
 		}
+		return aggressiveToCreatures;
+	}
+	,move: function(world,creature) {
+		if(!this.autoMove) {
+			return;
+		}
+		var aggressiveToCreatures = this.getAggresiveTo(world,creature);
 		var isAggressiveToThis = function(elem) {
 			if(js_Boot.__instanceof(elem,worldElements_creatures_Creature)) {
 				return common_ArrayExtensions.contains(aggressiveToCreatures,elem);
@@ -3848,10 +3876,10 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 		var nearestTarget = null;
 		var nearestTargetInfo = null;
 		var nearestTargetDistance = 1000000;
-		var _g2 = 0;
-		while(_g2 < toTargets.length) {
-			var toTarget = toTargets[_g2];
-			++_g2;
+		var _g = 0;
+		while(_g < toTargets.length) {
+			var toTarget = toTargets[_g];
+			++_g;
 			var target = world.elementsAtPosition(toTarget.point).filter(isAggressiveToThis)[0];
 			var canSee = world.pathfinder.isVisible(creature.position,target.position);
 			if(canSee) {
@@ -3878,8 +3906,8 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 			}
 			if(creature.wanderTo != null) {
 				var wanderInfo = world.pathfinder.find(creature.position,function(p1) {
-					var otherPoint1 = creature.wanderTo;
-					if(p1.x == otherPoint1.x && p1.y == otherPoint1.y) {
+					var otherPoint = creature.wanderTo;
+					if(p1.x == otherPoint.x && p1.y == otherPoint.y) {
 						return world.noBlockingElementsAt(p1,false);
 					} else {
 						return false;
@@ -3916,14 +3944,47 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 	}
 	,__class__: worldElements_creatures_movement_BasicMovement
 });
-var worldElements_creatures_movement_NoMovement = function() {
+var worldElements_creatures_movement_StillMovement = function() {
+	worldElements_creatures_movement_BasicMovement.call(this);
 };
-worldElements_creatures_movement_NoMovement.__name__ = true;
-worldElements_creatures_movement_NoMovement.__super__ = worldElements_creatures_movement_Movement;
-worldElements_creatures_movement_NoMovement.prototype = $extend(worldElements_creatures_movement_Movement.prototype,{
-	move: function(world,creature) {
+worldElements_creatures_movement_StillMovement.__name__ = true;
+worldElements_creatures_movement_StillMovement.__super__ = worldElements_creatures_movement_BasicMovement;
+worldElements_creatures_movement_StillMovement.prototype = $extend(worldElements_creatures_movement_BasicMovement.prototype,{
+	canMove: function(world,creature,direction) {
+		var newPosition = world.positionInDirection(creature.position,direction);
+		if(newPosition != null) {
+			var elementsHere = world.elementsAtPosition(newPosition);
+			if(common_ArrayExtensions.any(elementsHere,function(e) {
+				return e.hasActionFor(creature);
+			})) {
+				return true;
+			}
+		}
+		return false;
 	}
-	,__class__: worldElements_creatures_movement_NoMovement
+	,move: function(world,creature) {
+		if(!this.autoMove) {
+			return;
+		}
+		var aggressiveToCreatures = this.getAggresiveTo(world,creature);
+		this.canUseAnyAbility(creature,aggressiveToCreatures);
+	}
+	,moveInDirection: function(world,creature,direction) {
+		var newPosition = world.positionInDirection(creature.position,direction);
+		if(newPosition != null) {
+			var elementsHere = world.elementsAtPosition(newPosition);
+			var _g = 0;
+			while(_g < elementsHere.length) {
+				var elem = elementsHere[_g];
+				++_g;
+				if(elem != creature && elem.hasActionFor(creature)) {
+					elem.performActionFor(creature);
+					break;
+				}
+			}
+		}
+	}
+	,__class__: worldElements_creatures_movement_StillMovement
 });
 var worldElements_creatures_stats_CreatureStats = function(hp,ap,attack,defence) {
 	if(defence == null) {

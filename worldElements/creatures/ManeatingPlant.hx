@@ -1,7 +1,6 @@
 package worldElements.creatures;
 
-import worldElements.creatures.statusEffects.SplitOnByGoblin;
-
+@:keep
 class ManeatingPlant extends Creature {
     public override function init() {
         super.init();

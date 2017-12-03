@@ -17,7 +17,7 @@ class Player extends Focusable {
         super(keyboard, world, game);
 
         ownBody = new worldElements.creatures.Human(world, new Point(1, 1));
-        ownBody.movement = new worldElements.creatures.movement.NoMovement();
+        ownBody.movement.autoMove = false;
         world.addElement(ownBody);
         controllingBody = ownBody;
 
@@ -33,14 +33,13 @@ class Player extends Focusable {
     }
 
     public function afterTakeover() {
-        controllingBody.originalMovement = controllingBody.movement;
-        controllingBody.movement = new worldElements.creatures.movement.NoMovement();
+        controllingBody.movement.autoMove = false;
         controllingBody.actions.push(new StopTakeOver(ownBody));
     }
 
     public function stopTakeover() {
         if (controllingBody.stats.hp > 0) {
-            controllingBody.movement = controllingBody.originalMovement;
+            controllingBody.movement.autoMove = true;
             var stopTakeOverAction = controllingBody.actions.find(function (ac) return Std.is(ac, StopTakeOver));
             if (stopTakeOverAction != null)
                 controllingBody.actions.remove(stopTakeOverAction);
@@ -101,7 +100,7 @@ class Player extends Focusable {
             world.addElement(new worldElements.PlayerBody(world, new Point(ownBody.position.x, ownBody.position.y)));
             game.info.addInfo("You are dead! Press Space or Enter to restart.");
         }
-        if (controllingBody.stats.hp <= 0) {
+        else if (controllingBody.stats.hp <= 0) {
             stopTakeover();
             game.info.addInfo("You found yourself back in your own body.");
         }

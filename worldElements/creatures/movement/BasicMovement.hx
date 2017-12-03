@@ -1,6 +1,7 @@
 package worldElements.creatures.movement;
 
 class BasicMovement extends Movement {
+
     public function new() {
 
     }
@@ -23,6 +24,8 @@ class BasicMovement extends Movement {
     }
 
     public override function move(world:World, creature:Creature) {
+        if (!autoMove) return;
+
         var aggressiveToCreatures = getAggresiveTo(world, creature);
 
         function isAggressiveToThis(elem)
