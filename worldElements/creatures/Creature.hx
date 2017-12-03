@@ -3,8 +3,10 @@ import worldElements.creatures.movement.*;
 import worldElements.creatures.stats.CreatureStats;
 import worldElements.creatures.actions.*;
 import worldElements.creatures.statusEffects.StatusEffect;
-import worldElements.creatures.statusModifiers.StatusModifier;
+import worldElements.creatures.statusModifiers.*;
 
+@:keep
+@:keepSub
 class Creature extends WorldElement {
     public var movement:Movement;
     public var originalMovement:Movement;
@@ -31,7 +33,23 @@ class Creature extends WorldElement {
         var mods:Array<StatusModifier> = [];
         for (se in statusEffects)
             mods.push(se);
+        for (it in inventory)
+            mods.push(it);
         return mods;
+    }
+
+    public var simpleStatusModifiers(get, never):Array<SimpleStatusModifier>;
+    function get_simpleStatusModifiers() {
+        var mods:Array<SimpleStatusModifier> = [];
+        for (it in inventory) {
+            for (se in it.modifiersWhileInInventory)
+                mods.push(se);
+        }
+        return mods;
+    }
+
+    public function hasSimpleStatusModifier(mod) {
+        return simpleStatusModifiers.contains(mod);
     }
 
     /**
@@ -55,16 +73,28 @@ class Creature extends WorldElement {
      */
     public var aggressiveNearDistance = 2;
     public var wanderTo:Point = null;
+    public var canTakeItems:Bool = false;
+    public var isUndead:Bool = false;
+
+    public var inventory:Array<items.Item>;
 
     public override function init() {
         movement = new BasicMovement();
         originalMovement = movement;
-        stats = new CreatureStats(1, 1);
+        stats = new CreatureStats(this, 1, 1);
         basicAttack = new DirectionalAttack(this);
         actions = [];
         actions.push(basicAttack);
         attackedBy = [];
+        inventory = [];
         statusEffects = new Array<StatusEffect>();
+    }
+
+    /**
+     *  init as humanoid
+     */
+    public function initAsHumanoid() {
+        canTakeItems = true;
     }
 
     public override function preUpdate() {
@@ -137,6 +167,7 @@ class Creature extends WorldElement {
                 info += statusEffect.name;
             }
         }
+        info += ".";
 
         return (pre + '$creatureTypeAorAn $creatureTypeName$post - $info').firstToUpper();
     }
@@ -170,6 +201,12 @@ class Creature extends WorldElement {
                 world.info.addInfo('While you were mind controlling, you have been defeated!'.firstToUpper());
             else
                 world.info.addInfo('${getNameToUse()} ${getHaveOrHas()} been defeated.'.firstToUpper());
+
+            //Drop any items they have
+            if (world.player.ownBody != this) {
+                if (inventory.length != 0)
+                    world.addElement(new worldElements.ItemOnFloor(world, position, inventory));
+            }
             return true;
         }
         return false;
@@ -210,6 +247,13 @@ class Creature extends WorldElement {
             return "were";
         else
             return "was";
+    }
+
+    public function getOwnerReference() {
+        if (world.player.controllingBody == this)
+            return "your";
+        else
+            return "its";
     }
 
     public function getHaveOrHas() {

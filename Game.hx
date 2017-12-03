@@ -59,17 +59,25 @@ class Game {
         }
 
         focusedElement.draw();
+
+        //Quick info always
+        updateQuickInfo();
     }
 
     public function nextFocus(redrawWorld = false) {
         focus(player);
 
         drawWorld();
+
+        //Quick info always
+        updateQuickInfo();
     }
 
     public function drawWorld() {
         drawer.clear();
         world.draw();
+
+        updateQuickInfo();
     }
 
     public function postUpdate() {
@@ -83,6 +91,15 @@ class Game {
             else
                 drawer.setMouseHelp("");
         }
+    }
+
+    public function updateQuickInfo() {
+        var info = 'Floor ${world.floor}/${world.floorAmount}.';
+        if (player.ownBody.stats.hp <= 0)
+            info += " You're dead!";
+        else
+            info += " " + player.controllingBody.stats.getInfo();
+        drawer.setQuickInfo(info);
     }
 
     /**
@@ -101,5 +118,6 @@ class Game {
         world.update();
 
         info.processInfo(drawer);
+        updateQuickInfo();
     }
 }

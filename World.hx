@@ -1,6 +1,7 @@
 import worldElements.*;
 
 import worldElements.creatures.Creature;
+import items.artifacts.*;
 
 class World {
     public var elements:Array<WorldElement>;
@@ -26,6 +27,11 @@ class World {
 
     var extraUpdates:Array<WorldElement>;
 
+    public var remainingArtifacts:Array<{artifact:items.artifacts.Artifact, minFloor:Int}>;
+
+    public var floor:Int = 1;
+    public var floorAmount:Int = 5;
+
     public var creatures(get, never):Array<Creature>;
     function get_creatures()
         return elements.filter(function (elem) return Std.is(elem, Creature)).map(function (elem) return cast elem);
@@ -38,28 +44,27 @@ class World {
         elementsByPosition = [for (i in 0...width)
             [for (j in 0...height) []]];
         
-        elements.push(new Wall(this, new Point(0, 0)));
-        elements.push(new Wall(this, new Point(1, 0)));
-        elements.push(new Wall(this, new Point(2, 0)));
-        elements.push(new Wall(this, new Point(3, 0)));
-        elements.push(new Wall(this, new Point(2, 1)));
-        elements.push(new Wall(this, new Point(2, 2)));
-        elements.push(new Wall(this, new Point(4, 1)));
-        elements.push(new Wall(this, new Point(3, 2)));
-        elements.push(new Wall(this, new Point(4, 2)));
-        elements.push(new Wall(this, new Point(5, 2)));
-        elements.push(new Wall(this, new Point(6, 1)));
-        elements.push(new Wall(this, new Point(3, 1)));
-        elements.push(new worldElements.creatures.Rat(this, new Point(5, 4)));
-        elements.push(new worldElements.creatures.Rat(this, new Point(5, 5)));
-        elements.push(new worldElements.creatures.Rat(this, new Point(5, 6)));
-        elements.push(new worldElements.creatures.Goblin(this, new Point(7, 3)));
-        elements.push(new worldElements.creatures.Goblin(this, new Point(9, 2)));
-        elements.push(new worldElements.creatures.Goblin(this, new Point(11, 4)));
+        initArtifacts();
+    }
+
+    public function initArtifacts() {
+        remainingArtifacts = [
+            { artifact: new GobletOfForgetfulness(), minFloor: 1 },
+            { artifact: new UnclearGlasses(), minFloor: 1 },
+            { artifact: new DiamondBell(), minFloor: 2 },
+            { artifact: new BeltOfSlowness(), minFloor: 3 },
+            { artifact: new WingsOfPeace(), minFloor: 3 }
+        ];
+    }
+
+    public function nextFloor() {
+        floor++;
+        generateLevel();
+        player.onNewFloor(floor);
     }
 
     public function generateLevel() {
-        new dungeonGeneration.DungeonGenerator(this);
+        new dungeonGeneration.DungeonGenerator(this, floor);
     }
 
     public function addElement(element:WorldElement) {
@@ -154,15 +159,27 @@ class World {
     }
 
     public function draw() {
+        var isDebugMode = false;
+
         drawer.setWorldView(screenX, screenY, viewX, viewY, displayWidth, displayHeight);
 
         var visibleElements:Array<WorldElement> = [];
         var elemAt = [for (i in 0...width)[for (j in 0...height) false]];
 
+        var playerIsForgetfull = player.controllingBody.hasSimpleStatusModifier(Forgetfullness) ||
+            player.ownBody.hasSimpleStatusModifier(Forgetfullness);
+        var worseSight = player.controllingBody.hasSimpleStatusModifier(WorseSight);
+        var maxSeeDistance = worseSight ? 5.01 : 100;
+
+        var centerX = player.controllingBody.position.x, centerY = player.controllingBody.position.y;
+
         for (element in elements) {
             element.isCurrentlyVisible = false;
 
-            if (pathfinder.isVisible(player.controllingBody.position, element.position, true)) {
+            var canSee = Math.sqrt((element.position.x - centerX) * (element.position.x - centerX) +
+                (element.position.y - centerY) * (element.position.y - centerY)) <= maxSeeDistance;
+
+            if (canSee && pathfinder.isVisible(player.controllingBody.position, element.position, true)) {
                 visibleElements.push(element);
                 elemAt[element.position.x][element.position.y] = true;
             } else {
@@ -170,10 +187,12 @@ class World {
                     var nowSeen = false;
 
                     var anyIndirectlyVisible = false;
-                    forEachDirectionFromPoint(element.position, function(p) {
-                        if (pathfinder.isVisible(player.controllingBody.position, p, true) && noBlockingElementsAt(p))
-                            anyIndirectlyVisible = true;
-                    });
+                    if (canSee) {
+                        forEachDirectionFromPoint(element.position, function(p) {
+                            if (pathfinder.isVisible(player.controllingBody.position, p, true) && noBlockingElementsAt(p))
+                                anyIndirectlyVisible = true;
+                        });
+                    }
 
                     if (anyIndirectlyVisible) {
                         nowSeen = true;
@@ -181,14 +200,15 @@ class World {
                         elemAt[element.position.x][element.position.y] = true;
                     }
 
-                    if (! nowSeen && element.isStatic && element.seenByPlayer) {
+                    if ((! nowSeen && element.isStatic && element.seenByPlayer && !playerIsForgetfull) || isDebugMode) {
                         element.draw(drawer, true);
                         element.isCurrentlyVisible = true;
                     }
-                } else if (element.isStatic && element.seenByPlayer)
+                } else if ((element.isStatic && element.seenByPlayer && !playerIsForgetfull) || isDebugMode)
                     element.draw(drawer, true);
             }
         }
+
 
         var shouldBeVisible = [for (i in 0...width)[for (j in 0...height) false]];
         function floodFill(x, y) {
@@ -206,7 +226,8 @@ class World {
             if (isPositionInWorld(new Point(xx, yy)) && (!shouldBeVisible[xx][yy] && elemAt[xx][yy]))
                 floodFill(xx, yy);
         }
-        floodFill(player.controllingBody.position.x, player.controllingBody.position.y);
+        
+        floodFill(centerX, centerY);
 
         for (element in visibleElements) {
             if (shouldBeVisible[element.position.x][element.position.y]) {

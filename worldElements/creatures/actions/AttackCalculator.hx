@@ -8,14 +8,17 @@ enum AttackResult {
 }
 
 class AttackCalculator {
-    public static function basicAttack(attackingCreature:Creature, attackedCreature:Creature) {
-        var attackPart = attackingCreature.stats.attack;
-        attackPart = Random.getInt(Math.ceil(attackPart / 2), attackPart + 1);
+    public static function basicAttack(attackingCreature:Creature, attackedCreature:Creature, attackMultiplier:Float = 1, neverCrit = false) {
+        var attackPartFloat:Float = attackingCreature.stats.attack;
+        attackPartFloat = Random.getFloat(Math.ceil(attackPartFloat / 2), attackPartFloat + 1);
+        attackPartFloat *= attackMultiplier;
+        var attackPart = Math.floor(attackPartFloat);
+
         var defencePart = attackedCreature.stats.defence;
         var isCritical = false;
-        if (Random.getFloat() < attackingCreature.stats.critChance) {
+        if (!neverCrit && Random.getFloat() < attackingCreature.stats.critChance) {
             isCritical = true;
-            attackPart += Math.ceil(attackingCreature.stats.attack * 0.67);
+            attackPart += Math.ceil(attackingCreature.stats.attack * 0.5);
             defencePart = Math.imin(attackPart - 1, defencePart);
         }
 

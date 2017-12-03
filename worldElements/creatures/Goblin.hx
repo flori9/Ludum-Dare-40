@@ -12,7 +12,6 @@ class Goblin extends Creature {
         stats.setMaxHP(8);
         stats.setMaxAP(3);
         stats.setAttack(2);
-        stats.speed = 100;
         actions.push(new worldElements.creatures.actions.AfflictStatusEffect(this, SplitOnByGoblin,
             function(c) return new SplitOnByGoblin(c), "{subject} spit on {object}, making all goblins aggressive to {shortObject}!", 3,
             "Spit", "Spit on an enemy next to you, making all goblins aggressive to it."));
@@ -20,5 +19,6 @@ class Goblin extends Creature {
         creatureAttackVerb = "hit";
         creatureFullAttackVerb = "hit";
         aggressiveToPlayerIfNear = true;
+        initAsHumanoid();
     }
 }

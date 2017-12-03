@@ -8,11 +8,12 @@ class Human extends Creature {
         character = "@";
         creatureTypeName = "human";
         stats.setMaxHP(10);
-        stats.setMaxAP(10);
-        stats.setAttack(3);
+        stats.setMaxAP(5);
+        stats.setAttack(4);
         stats.setCritChance(0.05);
 
         creatureAttackVerb = "hit";
         creatureFullAttackVerb = "hit";
+        initAsHumanoid();
     }
 }

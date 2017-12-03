@@ -8,7 +8,7 @@ class Main extends Application {
 
 	//The game width and height
 	static inline var gameWidth = 750; //50 characters
-	static inline var gameHeight = 600; //24 lines
+	static inline var gameHeight = 625; //25 lines
     
 	//Vars about how large/where we should draw to pass on to the game
 	var gameRect:Rectangle;

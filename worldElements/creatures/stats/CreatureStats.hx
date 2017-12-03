@@ -9,7 +9,9 @@ class CreatureStats {
     public var ap:Int;
     public var attack:Int;
     public var defence:Int;
-    public var speed:Int;
+    public var speed(get, null):Int;
+    function get_speed()
+        return Math.round(speed * (1 + creature.statusModifiers.sum(function (sm) return sm.modifySpeed)));
     public var critChance:Float;
 
     public var apRegen:Int; //Turns
@@ -21,12 +23,15 @@ class CreatureStats {
     public var maxHP:Int;
     public var maxAP:Int;
 
-    public function new(hp:Int, ap:Int, attack:Int = 0, defence:Int = 0) {
+    var creature:Creature;
+
+    public function new(creature:Creature, hp:Int, ap:Int, attack:Int = 0, defence:Int = 0) {
         maxHP = hp;
         maxAP = ap;
         this.attack = attack;
         this.defence = defence;
-    
+        this.creature = creature;
+
         this.hp = hp;
         this.ap = ap;
         this.speed = 100;
@@ -38,7 +43,7 @@ class CreatureStats {
     }
 
     public function getInfo():String {
-        return 'HP: $hp/$maxHP; AP: $ap/$maxAP';
+        return 'HP: $hp/$maxHP; AP: $ap/$maxAP; ATK: $attack';
     }
 
     public function setMaxHP(newMaxHP) {
@@ -78,4 +83,8 @@ class CreatureStats {
     public function setCritChance(chance) {
         critChance = chance;
     }
+
+    public function setSpeed(speed) {
+        this.speed = speed;
+    } 
 }

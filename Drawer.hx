@@ -23,12 +23,13 @@ class Drawer {
     var wallGraphics:Graphics;
     
     public static inline var width = 50;
-    public static inline var height = 24;
+    public static inline var height = 25;
     
     public static inline var singleWidth = 15;
     public static inline var singleHeight = 25;
     
-    public static inline var mouseHelpY = height - 2;
+    public static inline var mouseHelpY = height - 3;
+    public static inline var quickInfoY = height - 1;
 
     static inline var leftPadding = 0;
     static inline var topRemove = 5;
@@ -93,7 +94,7 @@ class Drawer {
      *  Change this with this function
      */
     public function setMouseHelp(text:String) {
-        clearLines(mouseHelpY, height - mouseHelpY);
+        clearLines(mouseHelpY, 2);
 
         var yy = mouseHelpY;
         if (getAmountOfLines(0, mouseHelpY, "Examine: " + text) == 1)
@@ -108,6 +109,11 @@ class Drawer {
         
         if (text != "")
             drawText(0, yy, "Examine: " + text);
+    }
+
+    public function setQuickInfo(text:String) {
+        clearLines(quickInfoY, height - quickInfoY);
+        drawText(0, quickInfoY, text);
     }
 
     public function setMultiBackground(x, y, width, col) {

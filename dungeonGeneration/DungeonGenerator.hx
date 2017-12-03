@@ -266,12 +266,36 @@ class DungeonGenerator {
         var playerRoom = rooms.min(function (r) return r.x);
         roomFunction[playerRoom] = PlayerStart;
 
+        var rightRooms = rooms.filter(function (r) return r.x > width - 14);
+        if (rightRooms.length == 0)
+            rightRooms = [rooms.max(function (r) return r.x)];
+        roomFunction[Random.fromArray(rightRooms)] = End;
+
         function getUnusedRooms() return rooms.filter(function(r) return roomFunction[r] == None);
         function getUnusedRoomsRandomOrder() {
             //Do some wacky shuffle that's good enough
             var unused = getUnusedRooms();
             unused.sort(function(_, _2) return Random.fromArray([-1, 1]));
             return unused;
+        }
+
+        //Find a room for treasure, with normally only one entrance
+        var roomsStillToFill = getUnusedRoomsRandomOrder();
+        var addedTreasure = false, maxEntrances = 1;
+        while (! addedTreasure) {
+            for (room in roomsStillToFill) {
+                var entrances = 0;
+                for (path in paths) {
+                    if (path.room1 == room || path.room2 == room)
+                        entrances += 1;
+                }
+                if (entrances <= maxEntrances) {
+                    roomFunction[room] = Treasure;
+                    addedTreasure = true;
+                    break;
+                }
+            }
+            maxEntrances += 1;
         }
 
         //Fill some of the unused rooms with monsters
@@ -288,9 +312,18 @@ class DungeonGenerator {
                     //Add the monster(s)
                     addMonsters(room);
                 case End:
-                    //Add the exit
+                    world.addElement(new Ladder(world, anyEmptyPositionInRoom(room, true)));
                 case Treasure:
                     //Add the treasure
+                    var possibleArtifacts = world.remainingArtifacts.filter(function (art) return floor >= art.minFloor);
+                    if (possibleArtifacts.length != 0)
+                    {
+                        var artifact = Random.fromArray(possibleArtifacts);
+                        trace(artifact);
+                        world.addElement(new ItemOnFloor(world, anyEmptyPositionInRoom(room, true), [artifact.artifact]));
+                        world.remainingArtifacts.remove(artifact);
+                    }
+                    //Protecting monsters?
                 case None:
                     //Nothing in the room
             }
@@ -299,11 +332,11 @@ class DungeonGenerator {
         return basicDungeon;
     }
 
-    function anyEmptyPositionInRoom(room:Rectangle) {
+    function anyEmptyPositionInRoom(room:Rectangle, notEdge = false) {
         var tries = 0;
         while (tries < 1000) {
-            var pointX = Random.getInt(room.x, room.x2),
-                pointY = Random.getInt(room.y, room.y2);
+            var pointX = Random.getInt(room.x + (notEdge ? 1 : 0), room.x2 - (notEdge ? 1 : 0)),
+                pointY = Random.getInt(room.y + (notEdge ? 1 : 0), room.y2 - (notEdge ? 1 : 0));
             if (world.noBlockingElementsAt(new Point(pointX, pointY)))
                 return new Point(pointX, pointY);
         }
@@ -312,7 +345,14 @@ class DungeonGenerator {
 
     public function addMonsters(room:Rectangle) {
         var points = 2 + Random.getInt(floor);
-        var creatureOptions = [{type: Goblin, points: 2}, {type: Rat, points: 1}, {type: ManeatingPlant, points: 1}];
+        if (floor == 1)
+            points = Random.getInt(1, 3);
+        var creatureOptions = [{type: Goblin, points: 2},
+            {type: Rat, points: 1},
+            {type: ManeatingPlant, points: 2},
+            {type: Skeleton, points: 3},
+            {type: Vampire, points: 4}];
+
         for (i in 0...100) {
             var creatureOption = Random.fromArray(creatureOptions);
 

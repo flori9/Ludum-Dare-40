@@ -1,11 +1,10 @@
 package worldElements.creatures.statusModifiers;
 
 class StatusModifier {
-    var creature:Creature;
+    public var modifySpeed(get, never):Float;
+    function get_modifySpeed() return 0.0;
 
-    public function new(creature:Creature) {
-        this.creature = creature;
-
+    public function new() {
         init();
     }
 

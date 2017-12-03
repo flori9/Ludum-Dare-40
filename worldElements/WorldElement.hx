@@ -26,6 +26,8 @@ class WorldElement {
     var color:Int;
     /** Whether the player has seen this */
     public var seenByPlayer:Bool = false;
+    
+    public var moveAfterActionsForThis:Bool = false;
 
     /**
      *  Whether the player can see this, either gray or not

@@ -47,6 +47,12 @@ class Movement {
             for (elem in elementsHere) {
                 if (elem != creature && elem.hasActionFor(creature)) {
                     elem.performActionFor(creature);
+
+                    //Still move if the item wants that to happen
+                    var elementsHere2 = elementsHere.copy();
+                    elementsHere2.remove(elem);
+                    if (elem.moveAfterActionsForThis && !isBlockingElementIn(world, elementsHere2))
+                        creature.position = newPosition;
                     break;
                 }
             }

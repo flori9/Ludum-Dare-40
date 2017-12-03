@@ -10,6 +10,7 @@ class Player extends Focusable {
     var statusEffectsMenuKey:Int;
     var actionsKey:Int;
     var waitKey:Int;
+    var inventoryMenuKey:Int;
 
     override function get_showsWorld() return true;
 
@@ -24,12 +25,41 @@ class Player extends Focusable {
         statusEffectsMenuKey = Keyboard.getLetterCode("e");
         actionsKey = 16; //shift
         waitKey = 190; //.
+        inventoryMenuKey = Keyboard.getLetterCode("i");
 
         // ownBody.actions.push(new AfflictStatusEffect(ownBody, Poison, function(c) return new Poison(c),
         //     "{subject} poisoned {object}!", 1,
         //     "Poisonous Strike", "Poison an enemy next to you."));
         ownBody.actions.push(new Dash(ownBody));
-        ownBody.actions.push(new TakeOverEnemy(ownBody));
+    }
+
+    public function onNewFloor(floor:Int) {
+        if (floor == 2) {
+            world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Air Blast!");
+            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 3);
+            ownBody.stats.setMaxAP(ownBody.stats.maxAP + 2);
+            ownBody.stats.setAttack(ownBody.stats.attack + 1);
+            ownBody.actions.push(new worldElements.creatures.actions.RangedSpecialDirectionalAttack(ownBody, 1.5, "{attacker} pushed a magical blast of air at {target}. It's a critical hit for {damage} damage.",
+            "{attacker} pushed a magical blast of air at {target} for {damage} damage.", "{attacker} pushed a magical blast of air at {target}, {butDefended}", "Air Blast", "Push a powerful blast of air at an enemy. There can be a square between you and the enemy.", 4, 2));
+        }
+        else if (floor == 3) {
+            world.info.addInfo("Floor complete! You feel healthier and more experienced! You also learnt a new ability: Mind Control!");
+            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 3);
+            ownBody.stats.setMaxAP(ownBody.stats.maxAP + 2);
+            ownBody.actions.push(new TakeOverEnemy(ownBody));
+        }
+        else if (floor == 4) {
+            world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
+            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 3);
+            ownBody.stats.setMaxAP(ownBody.stats.maxAP + 2);
+            ownBody.stats.setAttack(ownBody.stats.attack + 1);
+        }
+        else if (floor == 5) {
+            world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
+            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 3);
+            ownBody.stats.setMaxAP(ownBody.stats.maxAP + 2);
+            ownBody.stats.setAttack(ownBody.stats.attack + 1);
+        }
     }
 
     public function afterTakeover() {
@@ -88,6 +118,8 @@ class Player extends Focusable {
             showActions();
         } else if (keyboard.pressed[statusEffectsMenuKey]) {
             showStatusEffects();
+        } else if (keyboard.pressed[inventoryMenuKey]) {
+            showInventory();
         } else if (keyboard.pressed[waitKey]) {
             game.beforeStep();
             game.afterStep();
@@ -113,6 +145,15 @@ class Player extends Focusable {
         menu = new ui.Menu(game.drawer, keyboard, world, game, this, "Status Effects", statusEffectMenuItems, statusEffectsMenuKey);
         game.focus(menu);
     }
+
+    function showInventory() {
+        var inventoryMenuItems = [for (item in controllingBody.inventory) new ui.MenuItem(item.name, item.description, function() {})];
+        var menu:ui.Menu;
+        inventoryMenuItems.push(new ui.MenuItem("Close Menu", "", function() menu.close()));
+        menu = new ui.Menu(game.drawer, keyboard, world, game, this, "Inventory", inventoryMenuItems, inventoryMenuKey);
+        game.focus(menu);
+    }
+
 
     function showActions() {
         var actionMenuItems = [];

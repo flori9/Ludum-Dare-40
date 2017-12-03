@@ -50,7 +50,7 @@ var Drawer = function(stage) {
 	stage.addChild(this.wallGraphics);
 	this.bitmaps = [];
 	var _g = 0;
-	while(_g < 24) {
+	while(_g < 25) {
 		var i = _g++;
 		this.bitmaps[i] = [];
 		var _g1 = 0;
@@ -94,12 +94,12 @@ Drawer.colorToInt = function(color) {
 };
 Drawer.prototype = {
 	clear: function() {
-		this.clearLines(0,24);
+		this.clearLines(0,25);
 		this.wallGraphics.clear();
 	}
 	,destroy: function() {
 		var _g = 0;
-		while(_g < 24) {
+		while(_g < 25) {
 			var i = _g++;
 			var _g1 = 0;
 			while(_g1 < 50) {
@@ -136,6 +136,10 @@ Drawer.prototype = {
 		if(text != "") {
 			this.drawText(0,yy,"Examine: " + text);
 		}
+	}
+	,setQuickInfo: function(text) {
+		this.clearLines(24,1);
+		this.drawText(0,24,text);
 	}
 	,setMultiBackground: function(x,y,width,col) {
 		var _g1 = x;
@@ -182,7 +186,7 @@ Drawer.prototype = {
 		if(color == null) {
 			color = 16777215;
 		}
-		if(x < 0 || y < 0 || x >= 50 || y >= 24) {
+		if(x < 0 || y < 0 || x >= 50 || y >= 25) {
 			return;
 		}
 		this.bitmaps[y][x].text = character;
@@ -196,7 +200,7 @@ Drawer.prototype = {
 		if(color == null) {
 			color = 16777215;
 		}
-		if(x < 0 || y < 0 || x >= 50 || y >= 24) {
+		if(x < 0 || y < 0 || x >= 50 || y >= 25) {
 			return;
 		}
 		this.wallGraphics.beginFill(color,alpha);
@@ -375,10 +379,12 @@ Game.prototype = {
 			this.drawWorld();
 		}
 		this.focusedElement.draw();
+		this.updateQuickInfo();
 	}
 	,drawWorld: function() {
 		this.drawer.clear();
 		this.world.draw();
+		this.updateQuickInfo();
 	}
 	,postUpdate: function() {
 		this.keyboard.postUpdate();
@@ -391,6 +397,15 @@ Game.prototype = {
 			}
 		}
 	}
+	,updateQuickInfo: function() {
+		var info = "Floor " + this.world.floor + "/" + this.world.floorAmount + ".";
+		if(this.player.ownBody.stats.hp <= 0) {
+			info += " You're dead!";
+		} else {
+			info += " " + this.player.controllingBody.stats.getInfo();
+		}
+		this.drawer.setQuickInfo(info);
+	}
 	,beforeStep: function() {
 		this.drawer.clear();
 		this.info.clear();
@@ -399,6 +414,7 @@ Game.prototype = {
 	,afterStep: function() {
 		this.world.update();
 		this.info.processInfo(this.drawer);
+		this.updateQuickInfo();
 	}
 	,__class__: Game
 };
@@ -655,10 +671,10 @@ Main.prototype = $extend(pixi_plugins_app_Application.prototype,{
 		this.backgroundColor = 0;
 		this.clearBeforeRender = true;
 		this.width = 750;
-		this.height = 600;
+		this.height = 625;
 		this.initConfig();
 		pixi_plugins_app_Application.prototype.start.call(this);
-		this.gameRect = new common_Rectangle(0,0,750,600);
+		this.gameRect = new common_Rectangle(0,0,750,625);
 		this.loader = new GameLoader(function() {
 			console.log("loaded");
 			_gthis.loader = null;
@@ -947,14 +963,39 @@ var Player = function(keyboard,world,game) {
 	this.statusEffectsMenuKey = Keyboard.getLetterCode("e");
 	this.actionsKey = 16;
 	this.waitKey = 190;
+	this.inventoryMenuKey = Keyboard.getLetterCode("i");
 	this.ownBody.actions.push(new worldElements_creatures_actions_Dash(this.ownBody));
-	this.ownBody.actions.push(new worldElements_creatures_actions_TakeOverEnemy(this.ownBody));
 };
 Player.__name__ = true;
 Player.__super__ = Focusable;
 Player.prototype = $extend(Focusable.prototype,{
 	get_showsWorld: function() {
 		return true;
+	}
+	,onNewFloor: function(floor) {
+		if(floor == 2) {
+			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Air Blast!");
+			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
+			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
+			this.ownBody.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this.ownBody,1.5,"{attacker} pushed a magical blast of air at {target}. It's a critical hit for {damage} damage.","{attacker} pushed a magical blast of air at {target} for {damage} damage.","{attacker} pushed a magical blast of air at {target}, {butDefended}","Air Blast","Push a powerful blast of air at an enemy. There can be a square between you and the enemy.",4,2));
+		} else if(floor == 3) {
+			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Mind Control!");
+			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
+			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
+			this.ownBody.actions.push(new worldElements_creatures_actions_TakeOverEnemy(this.ownBody));
+		} else if(floor == 4) {
+			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
+			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
+			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
+		} else if(floor == 5) {
+			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
+			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
+			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
+		}
 	}
 	,afterTakeover: function() {
 		this.controllingBody.movement.autoMove = false;
@@ -1014,6 +1055,8 @@ Player.prototype = $extend(Focusable.prototype,{
 			this.showActions();
 		} else if(this.keyboard.pressed[this.statusEffectsMenuKey]) {
 			this.showStatusEffects();
+		} else if(this.keyboard.pressed[this.inventoryMenuKey]) {
+			this.showInventory();
 		} else if(this.keyboard.pressed[this.waitKey]) {
 			this.game.beforeStep();
 			this.game.afterStep();
@@ -1045,6 +1088,24 @@ Player.prototype = $extend(Focusable.prototype,{
 			menu.close();
 		}));
 		menu = new ui_Menu(this.game.drawer,this.keyboard,this.world,this.game,this,"Status Effects",statusEffectMenuItems,this.statusEffectsMenuKey);
+		this.game.focus(menu);
+	}
+	,showInventory: function() {
+		var _g = [];
+		var _g1 = 0;
+		var _g2 = this.controllingBody.inventory;
+		while(_g1 < _g2.length) {
+			var item = _g2[_g1];
+			++_g1;
+			_g.push(new ui_MenuItem(item.get_name(),item.get_description(),function() {
+			}));
+		}
+		var inventoryMenuItems = _g;
+		var menu;
+		inventoryMenuItems.push(new ui_MenuItem("Close Menu","",function() {
+			menu.close();
+		}));
+		menu = new ui_Menu(this.game.drawer,this.keyboard,this.world,this.game,this,"Inventory",inventoryMenuItems,this.inventoryMenuKey);
 		this.game.focus(menu);
 	}
 	,showActions: function() {
@@ -1204,6 +1265,8 @@ Type.createInstance = function(cl,args) {
 	}
 };
 var World = function(drawer) {
+	this.floorAmount = 5;
+	this.floor = 1;
 	this.viewY = 0;
 	this.viewX = 0;
 	this.height = 20;
@@ -1226,24 +1289,7 @@ var World = function(drawer) {
 		_g.push(_g3);
 	}
 	this.elementsByPosition = _g;
-	this.elements.push(new worldElements_Wall(this,new common_Point(0,0)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(1,0)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(2,0)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(3,0)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(2,1)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(2,2)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(4,1)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(3,2)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(4,2)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(5,2)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(6,1)));
-	this.elements.push(new worldElements_Wall(this,new common_Point(3,1)));
-	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,4)));
-	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,5)));
-	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,6)));
-	this.elements.push(new worldElements_creatures_Goblin(this,new common_Point(7,3)));
-	this.elements.push(new worldElements_creatures_Goblin(this,new common_Point(9,2)));
-	this.elements.push(new worldElements_creatures_Goblin(this,new common_Point(11,4)));
+	this.initArtifacts();
 };
 World.__name__ = true;
 World.prototype = {
@@ -1254,8 +1300,16 @@ World.prototype = {
 			return elem1;
 		});
 	}
+	,initArtifacts: function() {
+		this.remainingArtifacts = [{ artifact : new items_artifacts_GobletOfForgetfulness(), minFloor : 1},{ artifact : new items_artifacts_UnclearGlasses(), minFloor : 1},{ artifact : new items_artifacts_DiamondBell(), minFloor : 2},{ artifact : new items_artifacts_BeltOfSlowness(), minFloor : 3},{ artifact : new items_artifacts_WingsOfPeace(), minFloor : 3}];
+	}
+	,nextFloor: function() {
+		this.floor++;
+		this.generateLevel();
+		this.player.onNewFloor(this.floor);
+	}
 	,generateLevel: function() {
-		new dungeonGeneration_DungeonGenerator(this);
+		new dungeonGeneration_DungeonGenerator(this,this.floor);
 	}
 	,addElement: function(element) {
 		this.elements.push(element);
@@ -1325,6 +1379,7 @@ World.prototype = {
 	}
 	,draw: function() {
 		var _gthis = this;
+		var isDebugMode = false;
 		this.drawer.setWorldView(0,2,this.viewX,this.viewY,50,20);
 		var visibleElements = [];
 		var _g = [];
@@ -1342,35 +1397,43 @@ World.prototype = {
 			_g.push(_g3);
 		}
 		var elemAt = _g;
+		var playerIsForgetfull = this.player.controllingBody.hasSimpleStatusModifier(worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness) || this.player.ownBody.hasSimpleStatusModifier(worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness);
+		var worseSight = this.player.controllingBody.hasSimpleStatusModifier(worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight);
+		var maxSeeDistance = worseSight ? 5.01 : 100;
+		var centerX = this.player.controllingBody.position.x;
+		var centerY = this.player.controllingBody.position.y;
 		var _g11 = 0;
 		var _g21 = this.elements;
 		while(_g11 < _g21.length) {
 			var element = _g21[_g11];
 			++_g11;
 			element.isCurrentlyVisible = false;
-			if(this.pathfinder.isVisible(this.player.controllingBody.position,element.position,true)) {
+			var canSee = Math.sqrt((element.position.x - centerX) * (element.position.x - centerX) + (element.position.y - centerY) * (element.position.y - centerY)) <= maxSeeDistance;
+			if(canSee && this.pathfinder.isVisible(this.player.controllingBody.position,element.position,true)) {
 				visibleElements.push(element);
 				elemAt[element.position.x][element.position.y] = true;
 			} else if(element.get_isEasierVisible()) {
 				var nowSeen = false;
 				var anyIndirectlyVisible = [false];
-				this.forEachDirectionFromPoint(element.position,(function(anyIndirectlyVisible1) {
-					return function(p) {
-						if(_gthis.pathfinder.isVisible(_gthis.player.controllingBody.position,p,true) && _gthis.noBlockingElementsAt(p)) {
-							anyIndirectlyVisible1[0] = true;
-						}
-					};
-				})(anyIndirectlyVisible));
+				if(canSee) {
+					this.forEachDirectionFromPoint(element.position,(function(anyIndirectlyVisible1) {
+						return function(p) {
+							if(_gthis.pathfinder.isVisible(_gthis.player.controllingBody.position,p,true) && _gthis.noBlockingElementsAt(p)) {
+								anyIndirectlyVisible1[0] = true;
+							}
+						};
+					})(anyIndirectlyVisible));
+				}
 				if(anyIndirectlyVisible[0]) {
 					nowSeen = true;
 					visibleElements.push(element);
 					elemAt[element.position.x][element.position.y] = true;
 				}
-				if(!nowSeen && element.get_isStatic() && element.seenByPlayer) {
+				if(!nowSeen && element.get_isStatic() && element.seenByPlayer && !playerIsForgetfull || isDebugMode) {
 					element.draw(this.drawer,true);
 					element.isCurrentlyVisible = true;
 				}
-			} else if(element.get_isStatic() && element.seenByPlayer) {
+			} else if(element.get_isStatic() && element.seenByPlayer && !playerIsForgetfull || isDebugMode) {
 				element.draw(this.drawer,true);
 			}
 		}
@@ -1414,7 +1477,7 @@ World.prototype = {
 			}
 		};
 		var floodFill1 = floodFill;
-		floodFill1(this.player.controllingBody.position.x,this.player.controllingBody.position.y);
+		floodFill1(centerX,centerY);
 		var _g23 = 0;
 		while(_g23 < visibleElements.length) {
 			var element1 = visibleElements[_g23];
@@ -1553,6 +1616,26 @@ World.prototype = {
 };
 var common_ArrayExtensions = function() { };
 common_ArrayExtensions.__name__ = true;
+common_ArrayExtensions.max = function(array,fn) {
+	if(fn == null) {
+		fn = function(val) {
+			return val;
+		};
+	}
+	var arrayMaxVal = -Infinity;
+	var arrayMaxItem = null;
+	var _g = 0;
+	while(_g < array.length) {
+		var item = array[_g];
+		++_g;
+		var val1 = fn(item);
+		if(val1 > arrayMaxVal) {
+			arrayMaxItem = item;
+			arrayMaxVal = val1;
+		}
+	}
+	return arrayMaxItem;
+};
 common_ArrayExtensions.min = function(array,fn) {
 	if(fn == null) {
 		fn = function(val) {
@@ -1572,6 +1655,21 @@ common_ArrayExtensions.min = function(array,fn) {
 		}
 	}
 	return arrayMinItem;
+};
+common_ArrayExtensions.sum = function(array,fn) {
+	if(fn == null) {
+		fn = function(val) {
+			return val;
+		};
+	}
+	var total = 0;
+	var _g = 0;
+	while(_g < array.length) {
+		var val1 = array[_g];
+		++_g;
+		total += fn(val1);
+	}
+	return total;
 };
 common_ArrayExtensions.any = function(array,fn) {
 	var _g = 0;
@@ -1949,6 +2047,7 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		this.generateBasicDungeon();
 	}
 	,generateBasicDungeon: function() {
+		var _gthis = this;
 		var _g = [];
 		var _g2 = 0;
 		var _g1 = this.width;
@@ -2249,9 +2348,20 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		});
 		var v1 = dungeonGeneration_RoomType.PlayerStart;
 		roomFunction.set(playerRoom,v1);
+		var rightRooms = rooms.filter(function(r1) {
+			return r1.x > _gthis.width - 14;
+		});
+		if(rightRooms.length == 0) {
+			rightRooms = [common_ArrayExtensions.max(rooms,function(r2) {
+				return r2.x;
+			})];
+		}
+		var k = common_Random.fromArray(rightRooms);
+		var v2 = dungeonGeneration_RoomType.End;
+		roomFunction.set(k,v2);
 		var getUnusedRooms = function() {
-			return rooms.filter(function(r1) {
-				return roomFunction.h[r1.__id__] == dungeonGeneration_RoomType.None;
+			return rooms.filter(function(r3) {
+				return roomFunction.h[r3.__id__] == dungeonGeneration_RoomType.None;
 			});
 		};
 		var getUnusedRoomsRandomOrder = function() {
@@ -2262,28 +2372,64 @@ dungeonGeneration_DungeonGenerator.prototype = {
 			return unused;
 		};
 		var roomsStillToFill = getUnusedRoomsRandomOrder();
-		var _g25 = 0;
-		var _g110 = roomsStillToFill.length - 2;
-		while(_g25 < _g110) {
-			var i5 = _g25++;
-			var v2 = dungeonGeneration_RoomType.Monsters;
-			roomFunction.set(roomsStillToFill[i5],v2);
+		var addedTreasure = false;
+		var maxEntrances = 1;
+		while(!addedTreasure) {
+			var _g110 = 0;
+			while(_g110 < roomsStillToFill.length) {
+				var room4 = roomsStillToFill[_g110];
+				++_g110;
+				var entrances = 0;
+				var _g25 = 0;
+				while(_g25 < paths.length) {
+					var path3 = paths[_g25];
+					++_g25;
+					if(path3.room1 == room4 || path3.room2 == room4) {
+						++entrances;
+					}
+				}
+				if(entrances <= maxEntrances) {
+					var v3 = dungeonGeneration_RoomType.Treasure;
+					roomFunction.set(room4,v3);
+					addedTreasure = true;
+					break;
+				}
+			}
+			++maxEntrances;
 		}
-		var room4 = roomFunction.keys();
-		while(room4.hasNext()) {
-			var room5 = room4.next();
-			var _g111 = roomFunction.h[room5.__id__];
-			switch(_g111[1]) {
+		var roomsStillToFill1 = getUnusedRoomsRandomOrder();
+		var _g26 = 0;
+		var _g111 = roomsStillToFill1.length - 2;
+		while(_g26 < _g111) {
+			var i5 = _g26++;
+			var v4 = dungeonGeneration_RoomType.Monsters;
+			roomFunction.set(roomsStillToFill1[i5],v4);
+		}
+		var room5 = roomFunction.keys();
+		while(room5.hasNext()) {
+			var room6 = room5.next();
+			var _g112 = roomFunction.h[room6.__id__];
+			switch(_g112[1]) {
 			case 0:
-				this.playerBody.set_position(new common_Point(room5.get_centerX(),room5.get_centerY()));
+				this.playerBody.set_position(new common_Point(room6.get_centerX(),room6.get_centerY()));
 				this.world.addElement(this.playerBody);
 				break;
 			case 1:
+				var possibleArtifacts = this.world.remainingArtifacts.filter(function(art) {
+					return _gthis.floor >= art.minFloor;
+				});
+				if(possibleArtifacts.length != 0) {
+					var artifact = common_Random.fromArray(possibleArtifacts);
+					console.log(artifact);
+					this.world.addElement(new worldElements_ItemOnFloor(this.world,this.anyEmptyPositionInRoom(room6,true),[artifact.artifact]));
+					HxOverrides.remove(this.world.remainingArtifacts,artifact);
+				}
 				break;
 			case 2:
-				this.addMonsters(room5);
+				this.addMonsters(room6);
 				break;
 			case 3:
+				this.world.addElement(new worldElements_Ladder(this.world,this.anyEmptyPositionInRoom(room6,true)));
 				break;
 			case 4:
 				break;
@@ -2291,11 +2437,14 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		}
 		return basicDungeon;
 	}
-	,anyEmptyPositionInRoom: function(room) {
+	,anyEmptyPositionInRoom: function(room,notEdge) {
+		if(notEdge == null) {
+			notEdge = false;
+		}
 		var tries = 0;
 		while(tries < 1000) {
-			var pointX = common_Random.getInt(room.x,room.get_x2());
-			var pointY = common_Random.getInt(room.y,room.get_y2());
+			var pointX = common_Random.getInt(room.x + (notEdge ? 1 : 0),room.get_x2() - (notEdge ? 1 : 0));
+			var pointY = common_Random.getInt(room.y + (notEdge ? 1 : 0),room.get_y2() - (notEdge ? 1 : 0));
 			if(this.world.noBlockingElementsAt(new common_Point(pointX,pointY))) {
 				return new common_Point(pointX,pointY);
 			}
@@ -2304,7 +2453,10 @@ dungeonGeneration_DungeonGenerator.prototype = {
 	}
 	,addMonsters: function(room) {
 		var points = 2 + common_Random.getInt(this.floor);
-		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1},{ type : worldElements_creatures_ManeatingPlant, points : 1}];
+		if(this.floor == 1) {
+			points = common_Random.getInt(1,3);
+		}
+		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1},{ type : worldElements_creatures_ManeatingPlant, points : 2},{ type : worldElements_creatures_Skeleton, points : 3},{ type : worldElements_creatures_Vampire, points : 5}];
 		var _g = 0;
 		while(_g < 100) {
 			var i = _g++;
@@ -2521,6 +2673,181 @@ haxe_web_Request.getParams = function() {
 	}
 	return params;
 };
+var worldElements_creatures_statusModifiers_StatusModifier = function() {
+	this.init();
+};
+worldElements_creatures_statusModifiers_StatusModifier.__name__ = true;
+worldElements_creatures_statusModifiers_StatusModifier.prototype = {
+	get_modifySpeed: function() {
+		return 0.0;
+	}
+	,init: function() {
+	}
+	,onTurn: function() {
+	}
+	,makesCreatureAggressive: function(creature) {
+		return false;
+	}
+	,__class__: worldElements_creatures_statusModifiers_StatusModifier
+};
+var items_Item = function() {
+	worldElements_creatures_statusModifiers_StatusModifier.call(this);
+};
+items_Item.__name__ = true;
+items_Item.__super__ = worldElements_creatures_statusModifiers_StatusModifier;
+items_Item.prototype = $extend(worldElements_creatures_statusModifiers_StatusModifier.prototype,{
+	get_name: function() {
+		return "";
+	}
+	,get_aOrAn: function() {
+		return "a";
+	}
+	,get_description: function() {
+		if(this.get_value() != 0) {
+			return "Value: " + this.get_value() + " gold.";
+		} else {
+			return "";
+		}
+	}
+	,get_value: function() {
+		return 0;
+	}
+	,get_color: function() {
+		return 10980667;
+	}
+	,get_character: function() {
+		return "$";
+	}
+	,get_modifiersWhileInInventory: function() {
+		return [];
+	}
+	,onTake: function(creature) {
+	}
+	,__class__: items_Item
+});
+var items_artifacts_Artifact = function() {
+	items_Item.call(this);
+};
+items_artifacts_Artifact.__name__ = true;
+items_artifacts_Artifact.__super__ = items_Item;
+items_artifacts_Artifact.prototype = $extend(items_Item.prototype,{
+	__class__: items_artifacts_Artifact
+});
+var items_artifacts_BeltOfSlowness = function() {
+	items_artifacts_Artifact.call(this);
+};
+items_artifacts_BeltOfSlowness.__name__ = true;
+items_artifacts_BeltOfSlowness.__super__ = items_artifacts_Artifact;
+items_artifacts_BeltOfSlowness.prototype = $extend(items_artifacts_Artifact.prototype,{
+	get_name: function() {
+		return "Belt of Slowness";
+	}
+	,get_description: function() {
+		return "You will be 20% slower. " + items_artifacts_Artifact.prototype.get_description.call(this);
+	}
+	,get_value: function() {
+		return 500;
+	}
+	,get_color: function() {
+		return 8897220;
+	}
+	,get_modifySpeed: function() {
+		return -0.2;
+	}
+	,__class__: items_artifacts_BeltOfSlowness
+});
+var items_artifacts_DiamondBell = function() {
+	items_artifacts_Artifact.call(this);
+};
+items_artifacts_DiamondBell.__name__ = true;
+items_artifacts_DiamondBell.__super__ = items_artifacts_Artifact;
+items_artifacts_DiamondBell.prototype = $extend(items_artifacts_Artifact.prototype,{
+	get_name: function() {
+		return "Diamond Bell";
+	}
+	,get_description: function() {
+		return "All creatures will be aggresive to you. " + items_artifacts_Artifact.prototype.get_description.call(this);
+	}
+	,get_value: function() {
+		return 500;
+	}
+	,get_color: function() {
+		return 16776960;
+	}
+	,makesCreatureAggressive: function(cr) {
+		return true;
+	}
+	,__class__: items_artifacts_DiamondBell
+});
+var items_artifacts_GobletOfForgetfulness = function() {
+	items_artifacts_Artifact.call(this);
+};
+items_artifacts_GobletOfForgetfulness.__name__ = true;
+items_artifacts_GobletOfForgetfulness.__super__ = items_artifacts_Artifact;
+items_artifacts_GobletOfForgetfulness.prototype = $extend(items_artifacts_Artifact.prototype,{
+	get_name: function() {
+		return "Goblet of Forgetfulness";
+	}
+	,get_description: function() {
+		return "You won't remember what previously visited parts of the dungeon look like. " + items_artifacts_Artifact.prototype.get_description.call(this);
+	}
+	,get_value: function() {
+		return 200;
+	}
+	,get_color: function() {
+		return 13009951;
+	}
+	,get_modifiersWhileInInventory: function() {
+		return [worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness];
+	}
+	,__class__: items_artifacts_GobletOfForgetfulness
+});
+var items_artifacts_UnclearGlasses = function() {
+	items_artifacts_Artifact.call(this);
+};
+items_artifacts_UnclearGlasses.__name__ = true;
+items_artifacts_UnclearGlasses.__super__ = items_artifacts_Artifact;
+items_artifacts_UnclearGlasses.prototype = $extend(items_artifacts_Artifact.prototype,{
+	get_name: function() {
+		return "Unclear Glasses";
+	}
+	,get_description: function() {
+		return "You'll be able to see less far. " + items_artifacts_Artifact.prototype.get_description.call(this);
+	}
+	,get_value: function() {
+		return 300;
+	}
+	,get_color: function() {
+		return 14737632;
+	}
+	,get_modifiersWhileInInventory: function() {
+		return [worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight];
+	}
+	,__class__: items_artifacts_UnclearGlasses
+});
+var items_artifacts_WingsOfPeace = function() {
+	items_artifacts_Artifact.call(this);
+};
+items_artifacts_WingsOfPeace.__name__ = true;
+items_artifacts_WingsOfPeace.__super__ = items_artifacts_Artifact;
+items_artifacts_WingsOfPeace.prototype = $extend(items_artifacts_Artifact.prototype,{
+	get_name: function() {
+		return "Wings of Peace";
+	}
+	,get_description: function() {
+		return "They won't let you fly, but you do feel a bit more peaceful. As a result, you lost 1 attack. " + items_artifacts_Artifact.prototype.get_description.call(this);
+	}
+	,get_value: function() {
+		return 700;
+	}
+	,get_color: function() {
+		return 1947329;
+	}
+	,onTake: function(creature) {
+		creature.stats.setAttack(creature.stats.attack - 1);
+	}
+	,__class__: items_artifacts_WingsOfPeace
+});
 var js__$Boot_HaxeError = function(val) {
 	Error.call(this);
 	this.val = val;
@@ -2882,6 +3209,7 @@ ui_Menu.prototype = $extend(Focusable.prototype,{
 	}
 	,draw: function() {
 		this.drawer.clear();
+		this.game.updateQuickInfo();
 		this.drawer.setMultiBackground(0,2,this.title.length,Drawer.colorToInt(Color.DarkGray));
 		this.drawer.drawText(0,2,this.title);
 		var menuHeight = 0;
@@ -2897,8 +3225,8 @@ ui_Menu.prototype = $extend(Focusable.prototype,{
 			}
 			menuHeight += item.getHeight(this.drawer);
 		}
-		var val = selectedAt - ((22 - upperLimit) / 2 | 0);
-		var val2 = menuHeight - 22 + upperLimit;
+		var val = selectedAt - ((23 - upperLimit) / 2 | 0);
+		var val2 = menuHeight - 23 + upperLimit;
 		var maxVal = val2 > 0 ? val2 : 0;
 		this.scrollTop = val < 0 ? 0 : val > maxVal ? maxVal : val;
 		var yy = upperLimit - this.scrollTop;
@@ -2907,7 +3235,7 @@ ui_Menu.prototype = $extend(Focusable.prototype,{
 		while(_g11 < _g2) {
 			var i1 = _g11++;
 			var item1 = this.items[i1];
-			item1.draw(this.drawer,yy,upperLimit,22,this.selectedItem == i1);
+			item1.draw(this.drawer,yy,upperLimit,23,this.selectedItem == i1);
 			yy += item1.getHeight(this.drawer);
 		}
 	}
@@ -2951,6 +3279,7 @@ ui_MenuItem.prototype = {
 };
 var worldElements_WorldElement = function(world,position) {
 	this.isCurrentlyVisible = false;
+	this.moveAfterActionsForThis = false;
 	this.seenByPlayer = false;
 	this.world = world;
 	this.set_position(position);
@@ -3042,6 +3371,127 @@ worldElements_Floor.prototype = $extend(worldElements_WorldElement.prototype,{
 	}
 	,__class__: worldElements_Floor
 });
+var worldElements_ItemOnFloor = function(world,position,items) {
+	this.taken = false;
+	this.items = items;
+	worldElements_WorldElement.call(this,world,position);
+};
+worldElements_ItemOnFloor.__name__ = true;
+worldElements_ItemOnFloor.__super__ = worldElements_WorldElement;
+worldElements_ItemOnFloor.prototype = $extend(worldElements_WorldElement.prototype,{
+	get_isBlocking: function() {
+		return true;
+	}
+	,get_isViewBlocking: function() {
+		return false;
+	}
+	,get_isStatic: function() {
+		return false;
+	}
+	,get_isEasierVisible: function() {
+		return false;
+	}
+	,init: function() {
+		if(this.items.length == 1) {
+			this.color = this.items[0].get_color();
+			this.character = this.items[0].get_character();
+		} else {
+			this.color = 11579568;
+			this.character = "+";
+		}
+		this.moveAfterActionsForThis = true;
+	}
+	,getInfo: function() {
+		if(this.items.length == 1) {
+			var str = this.items[0].get_aOrAn();
+			return (str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null)) + " " + this.items[0].get_name() + ".";
+		} else {
+			return "A pile of items.";
+		}
+	}
+	,hasActionFor: function(triggeringWorldElement) {
+		if(this.taken) {
+			return false;
+		}
+		if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
+			var triggeringCreature = triggeringWorldElement;
+			return triggeringCreature.canTakeItems;
+		}
+		return false;
+	}
+	,performActionFor: function(triggeringWorldElement) {
+		if(!this.taken) {
+			if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
+				var triggeringCreature = triggeringWorldElement;
+				var _g = 0;
+				var _g1 = this.items;
+				while(_g < _g1.length) {
+					var item = _g1[_g];
+					++_g;
+					if(triggeringCreature.isInterestingForPlayer()) {
+						this.world.info.addInfo("You took the " + item.get_name() + ".");
+						item.onTake(triggeringCreature);
+					}
+					triggeringCreature.inventory.push(item);
+				}
+				this.taken = true;
+			}
+		}
+	}
+	,shouldRemove: function() {
+		return this.taken;
+	}
+	,__class__: worldElements_ItemOnFloor
+});
+var worldElements_Ladder = function(world,position) {
+	worldElements_WorldElement.call(this,world,position);
+};
+worldElements_Ladder.__name__ = true;
+worldElements_Ladder.__super__ = worldElements_WorldElement;
+worldElements_Ladder.prototype = $extend(worldElements_WorldElement.prototype,{
+	get_isBlocking: function() {
+		return true;
+	}
+	,get_isViewBlocking: function() {
+		return false;
+	}
+	,get_isStatic: function() {
+		return true;
+	}
+	,get_isEasierVisible: function() {
+		return false;
+	}
+	,init: function() {
+		this.color = 12303524;
+		this.character = "#";
+	}
+	,getInfo: function() {
+		return "A ladder downwards.";
+	}
+	,hasActionFor: function(triggeringWorldElement) {
+		if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
+			var triggeringCreature = triggeringWorldElement;
+			if(this.world.player.controllingBody != triggeringCreature) {
+				return this.world.player.ownBody == triggeringCreature;
+			} else {
+				return true;
+			}
+		}
+		return false;
+	}
+	,performActionFor: function(triggeringWorldElement) {
+		if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
+			var triggeringCreature = triggeringWorldElement;
+			if(this.world.player.ownBody == triggeringCreature) {
+				this.world.info.addInfo("You climbed down the ladder. It crumbled behind you.");
+				this.world.nextFloor();
+			} else if(this.world.player.controllingBody == triggeringCreature) {
+				this.world.info.addInfo("You'd like to climb down the ladder with your own body.");
+			}
+		}
+	}
+	,__class__: worldElements_Ladder
+});
 var worldElements_PlayerBody = function(world,position) {
 	worldElements_WorldElement.call(this,world,position);
 };
@@ -3091,6 +3541,8 @@ worldElements_Wall.prototype = $extend(worldElements_WorldElement.prototype,{
 	,__class__: worldElements_Wall
 });
 var worldElements_creatures_Creature = function(world,position) {
+	this.isUndead = false;
+	this.canTakeItems = false;
 	this.wanderTo = null;
 	this.aggressiveNearDistance = 2;
 	this.aggressiveToPlayerIfNear = false;
@@ -3121,17 +3573,48 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			++_g;
 			mods.push(se);
 		}
+		var _g2 = 0;
+		var _g11 = this.inventory;
+		while(_g2 < _g11.length) {
+			var it = _g11[_g2];
+			++_g2;
+			mods.push(it);
+		}
 		return mods;
+	}
+	,get_simpleStatusModifiers: function() {
+		var mods = [];
+		var _g = 0;
+		var _g1 = this.inventory;
+		while(_g < _g1.length) {
+			var it = _g1[_g];
+			++_g;
+			var _g2 = 0;
+			var _g3 = it.get_modifiersWhileInInventory();
+			while(_g2 < _g3.length) {
+				var se = _g3[_g2];
+				++_g2;
+				mods.push(se);
+			}
+		}
+		return mods;
+	}
+	,hasSimpleStatusModifier: function(mod) {
+		return common_ArrayExtensions.contains(this.get_simpleStatusModifiers(),mod);
 	}
 	,init: function() {
 		this.movement = new worldElements_creatures_movement_BasicMovement();
 		this.originalMovement = this.movement;
-		this.stats = new worldElements_creatures_stats_CreatureStats(1,1);
+		this.stats = new worldElements_creatures_stats_CreatureStats(this,1,1);
 		this.basicAttack = new worldElements_creatures_actions_DirectionalAttack(this);
 		this.actions = [];
 		this.actions.push(this.basicAttack);
 		this.attackedBy = [];
+		this.inventory = [];
 		this.statusEffects = [];
+	}
+	,initAsHumanoid: function() {
+		this.canTakeItems = true;
 	}
 	,preUpdate: function() {
 		this.hasMoved = false;
@@ -3143,9 +3626,9 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 		worldElements_WorldElement.prototype.update.call(this);
 		if(!this.hasMoved) {
 			if(!isExtra) {
-				this.speedPoints += this.stats.speed;
+				this.speedPoints += this.stats.get_speed();
 			}
-			var playerSpeed = this.world.player.controllingBody.stats.speed;
+			var playerSpeed = this.world.player.controllingBody.stats.get_speed();
 			if(this.speedPoints >= playerSpeed) {
 				this.movement.move(this.world,this);
 				this.hasMoved = true;
@@ -3213,6 +3696,7 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 				info += statusEffect.name;
 			}
 		}
+		info += ".";
 		var str = pre + ("" + this.creatureTypeAorAn + " " + this.creatureTypeName + post + " - " + info);
 		if(str.length == 0) {
 			return str;
@@ -3242,6 +3726,11 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 				var tmp = this.world.info;
 				var str = "" + this.getNameToUse() + " " + this.getHaveOrHas() + " been defeated.";
 				tmp.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
+			}
+			if(this.world.player.ownBody != this) {
+				if(this.inventory.length != 0) {
+					this.world.addElement(new worldElements_ItemOnFloor(this.world,this.position,this.inventory));
+				}
 			}
 			return true;
 		}
@@ -3293,6 +3782,13 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			return "was";
 		}
 	}
+	,getOwnerReference: function() {
+		if(this.world.player.controllingBody == this) {
+			return "your";
+		} else {
+			return "its";
+		}
+	}
 	,getHaveOrHas: function() {
 		if(this.world.player.controllingBody == this) {
 			return "have";
@@ -3324,13 +3820,13 @@ worldElements_creatures_Goblin.prototype = $extend(worldElements_creatures_Creat
 		this.stats.setMaxHP(8);
 		this.stats.setMaxAP(3);
 		this.stats.setAttack(2);
-		this.stats.speed = 100;
 		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_SplitOnByGoblin,function(c) {
 			return new worldElements_creatures_statusEffects_SplitOnByGoblin(c);
 		},"{subject} spit on {object}, making all goblins aggressive to {shortObject}!",3,"Spit","Spit on an enemy next to you, making all goblins aggressive to it."));
 		this.creatureAttackVerb = "hit";
 		this.creatureFullAttackVerb = "hit";
 		this.aggressiveToPlayerIfNear = true;
+		this.initAsHumanoid();
 	}
 	,__class__: worldElements_creatures_Goblin
 });
@@ -3346,11 +3842,12 @@ worldElements_creatures_Human.prototype = $extend(worldElements_creatures_Creatu
 		this.character = "@";
 		this.creatureTypeName = "human";
 		this.stats.setMaxHP(10);
-		this.stats.setMaxAP(10);
-		this.stats.setAttack(3);
+		this.stats.setMaxAP(5);
+		this.stats.setAttack(4);
 		this.stats.setCritChance(0.05);
 		this.creatureAttackVerb = "hit";
 		this.creatureFullAttackVerb = "hit";
+		this.initAsHumanoid();
 	}
 	,__class__: worldElements_creatures_Human
 });
@@ -3368,7 +3865,6 @@ worldElements_creatures_ManeatingPlant.prototype = $extend(worldElements_creatur
 		this.stats.setMaxHP(7);
 		this.stats.setMaxAP(3);
 		this.stats.setAttack(3);
-		this.stats.speed = 100;
 		this.creatureAttackVerb = "grabbed";
 		this.creatureFullAttackVerb = "grab";
 		this.aggressiveToPlayerIfNear = true;
@@ -3391,12 +3887,69 @@ worldElements_creatures_Rat.prototype = $extend(worldElements_creatures_Creature
 		this.stats.setMaxHP(5);
 		this.stats.setMaxAP(1);
 		this.stats.setAttack(1);
-		this.stats.speed = 150;
+		this.stats.setSpeed(150);
 		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_Poison,function(c) {
 			return new worldElements_creatures_statusEffects_Poison(c);
 		},"{subject} poisoned {object}!",1,"Rat Poison","Inject poison into an enemy next to you."));
 	}
 	,__class__: worldElements_creatures_Rat
+});
+var worldElements_creatures_Skeleton = function(world,position) {
+	worldElements_creatures_Creature.call(this,world,position);
+};
+worldElements_creatures_Skeleton.__name__ = true;
+worldElements_creatures_Skeleton.__super__ = worldElements_creatures_Creature;
+worldElements_creatures_Skeleton.prototype = $extend(worldElements_creatures_Creature.prototype,{
+	init: function() {
+		worldElements_creatures_Creature.prototype.init.call(this);
+		this.color = 13684944;
+		this.character = "s";
+		this.creatureTypeName = "human skeleton";
+		this.stats.setMaxHP(10);
+		this.stats.setMaxAP(5);
+		this.stats.setAttack(5);
+		this.stats.setSpeed(50);
+		this.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this,0.6,"{attacker} threw a bone at {target}. It's a critical hit for {damage} damage.","{attacker} threw a bone at {target} for {damage} damage.","{attacker} threw a bone at {target}, {butDefended}","Throw Bone","Throw a bone in a direction, dealing damage from up to five squares away from an enemy.",2,5));
+		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_Slowed,function(c) {
+			return new worldElements_creatures_statusEffects_Slowed(c);
+		},"{subject} slowed {object} with its deadly breath!",3,"Breathe Death","Slow an enemy next to you."));
+		this.creatureAttackVerb = "hit";
+		this.creatureFullAttackVerb = "hit";
+		this.aggressiveToPlayerIfNear = true;
+		this.aggressiveNearDistance = 5;
+		this.initAsHumanoid();
+		this.isUndead = true;
+	}
+	,__class__: worldElements_creatures_Skeleton
+});
+var worldElements_creatures_Vampire = function(world,position) {
+	worldElements_creatures_Creature.call(this,world,position);
+};
+worldElements_creatures_Vampire.__name__ = true;
+worldElements_creatures_Vampire.__super__ = worldElements_creatures_Creature;
+worldElements_creatures_Vampire.prototype = $extend(worldElements_creatures_Creature.prototype,{
+	init: function() {
+		var _gthis = this;
+		worldElements_creatures_Creature.prototype.init.call(this);
+		this.color = 16711680;
+		this.character = "v";
+		this.creatureTypeName = "vampire";
+		this.stats.setMaxHP(20);
+		this.stats.setMaxAP(9);
+		this.stats.setAPRegen(5);
+		this.stats.setAttack(8);
+		this.stats.setSpeed(125);
+		this.actions.push(new worldElements_creatures_actions_SpecialDirectionalAttack(this,0.7,"","{attacker} drunk blood from {target} for {damage} damage, healing {attackerReference} for that amount.","{attacker} tried to drink blood from {target}, {butDefended}","Drink Blood","Drink blood from an enemy, healing you for the damage done.",4,true,function(dmg) {
+			_gthis.stats.gainHP(dmg);
+		}));
+		this.creatureAttackVerb = "bit";
+		this.creatureFullAttackVerb = "bite";
+		this.aggressiveToPlayerIfNear = true;
+		this.aggressiveNearDistance = 10;
+		this.initAsHumanoid();
+		this.isUndead = true;
+	}
+	,__class__: worldElements_creatures_Vampire
 });
 var worldElements_creatures_actions_CreatureAction = function(creature) {
 	this.abilityDescription = "";
@@ -3538,12 +4091,20 @@ worldElements_creatures_actions_AttackResult.Block.toString = $estr;
 worldElements_creatures_actions_AttackResult.Block.__enum__ = worldElements_creatures_actions_AttackResult;
 var worldElements_creatures_actions_AttackCalculator = function() { };
 worldElements_creatures_actions_AttackCalculator.__name__ = true;
-worldElements_creatures_actions_AttackCalculator.basicAttack = function(attackingCreature,attackedCreature) {
-	var attackPart = attackingCreature.stats.attack;
-	attackPart = common_Random.getInt(Math.ceil(attackPart / 2),attackPart + 1);
+worldElements_creatures_actions_AttackCalculator.basicAttack = function(attackingCreature,attackedCreature,attackMultiplier,neverCrit) {
+	if(neverCrit == null) {
+		neverCrit = false;
+	}
+	if(attackMultiplier == null) {
+		attackMultiplier = 1;
+	}
+	var attackPartFloat = attackingCreature.stats.attack;
+	attackPartFloat = common_Random.getFloat(Math.ceil(attackPartFloat / 2),attackPartFloat + 1);
+	attackPartFloat *= attackMultiplier;
+	var attackPart = Math.floor(attackPartFloat);
 	var defencePart = attackedCreature.stats.defence;
 	var isCritical = false;
-	if(common_Random.getFloat() < attackingCreature.stats.critChance) {
+	if(!neverCrit && common_Random.getFloat() < attackingCreature.stats.critChance) {
 		isCritical = true;
 		attackPart += Math.ceil(attackingCreature.stats.attack * 0.67);
 		var val1 = attackPart - 1;
@@ -3723,6 +4284,146 @@ worldElements_creatures_actions_DirectionalAttack.prototype = $extend(worldEleme
 	}
 	,__class__: worldElements_creatures_actions_DirectionalAttack
 });
+var worldElements_creatures_actions_SpecialDirectionalAttack = function(creature,damageMultiplier,criticalText,damageText,blockText,abilityName,abilityDescription,ap,neverCrit,postAttack) {
+	if(neverCrit == null) {
+		neverCrit = false;
+	}
+	worldElements_creatures_actions_DirectionalAttack.call(this,creature);
+	this.damageMultiplier = 1;
+	this.criticalText = criticalText;
+	this.damageText = damageText;
+	this.blockText = blockText;
+	this.abilityName = abilityName;
+	this.abilityDescription = abilityDescription;
+	this.ap = ap;
+	this.neverCrit = neverCrit;
+	this.postAttack = postAttack;
+};
+worldElements_creatures_actions_SpecialDirectionalAttack.__name__ = true;
+worldElements_creatures_actions_SpecialDirectionalAttack.__super__ = worldElements_creatures_actions_DirectionalAttack;
+worldElements_creatures_actions_SpecialDirectionalAttack.prototype = $extend(worldElements_creatures_actions_DirectionalAttack.prototype,{
+	get_actionPoints: function() {
+		return this.ap;
+	}
+	,useOnElement: function(elementHere) {
+		var creatureHere = elementHere;
+		var result = worldElements_creatures_actions_AttackCalculator.basicAttack(this.creature,creatureHere,this.damageMultiplier,this.neverCrit);
+		if(this.postAttack != null) {
+			var tmp;
+			switch(result[1]) {
+			case 0:
+				var damage = result[2];
+				tmp = damage;
+				break;
+			case 1:
+				var damage1 = result[2];
+				tmp = damage1;
+				break;
+			case 2:
+				tmp = 0;
+				break;
+			}
+			this.postAttack(tmp);
+		}
+		if(this.creature.isInterestingForPlayer() || elementHere.isInterestingForPlayer()) {
+			var text;
+			switch(result[1]) {
+			case 0:
+				var damage2 = result[2];
+				text = StringTools.replace(this.damageText,"{damage}","" + damage2);
+				break;
+			case 1:
+				var damage3 = result[2];
+				text = StringTools.replace(this.criticalText,"{damage}","" + damage3);
+				break;
+			case 2:
+				text = this.blockText;
+				break;
+			}
+			text = StringTools.replace(text,"{attacker}",this.creature.getNameToUse());
+			text = StringTools.replace(text,"{attackerReference}",this.creature.getReferenceToUse(false,true));
+			text = StringTools.replace(text,"{owner}",this.creature.getOwnerReference());
+			text = StringTools.replace(text,"{target}",creatureHere.getNameToUse());
+			text = StringTools.replace(text,"{butDefended}","but {reference} defended {selfreference}");
+			text = StringTools.replace(text,"{reference}",creatureHere.getReferenceToUse());
+			text = StringTools.replace(text,"{selfreference}",creatureHere.getReferenceToUse(true));
+			if(text.length == 0) {
+				text = text;
+			} else {
+				text = text.charAt(0).toUpperCase() + HxOverrides.substr(text,1,null);
+			}
+			this.creature.world.info.addInfo(text);
+		}
+	}
+	,__class__: worldElements_creatures_actions_SpecialDirectionalAttack
+});
+var worldElements_creatures_actions_RangedSpecialDirectionalAttack = function(creature,damageMultiplier,criticalText,damageText,blockText,abilityName,abilityDescription,ap,rangeInSquares,neverCrit,postAttack) {
+	if(neverCrit == null) {
+		neverCrit = false;
+	}
+	this.rangeInSquares = 1000;
+	worldElements_creatures_actions_SpecialDirectionalAttack.call(this,creature,damageMultiplier,criticalText,damageText,blockText,abilityName,abilityDescription,ap,neverCrit,postAttack);
+	this.rangeInSquares = rangeInSquares;
+};
+worldElements_creatures_actions_RangedSpecialDirectionalAttack.__name__ = true;
+worldElements_creatures_actions_RangedSpecialDirectionalAttack.__super__ = worldElements_creatures_actions_SpecialDirectionalAttack;
+worldElements_creatures_actions_RangedSpecialDirectionalAttack.prototype = $extend(worldElements_creatures_actions_SpecialDirectionalAttack.prototype,{
+	canUse: function() {
+		var pos = this.creature.position;
+		var _g1 = 0;
+		var _g = this.rangeInSquares;
+		while(_g1 < _g) {
+			var i = _g1++;
+			pos = this.creature.world.positionInDirection(pos,this.direction);
+			if(common_ArrayExtensions.any(this.creature.world.elementsAtPosition(pos),function(elem) {
+				return js_Boot.__instanceof(elem,worldElements_creatures_Creature);
+			})) {
+				return true;
+			}
+			if(!this.creature.world.noBlockingElementsAt(pos,false)) {
+				return false;
+			}
+		}
+		return false;
+	}
+	,canUseOnCreatureFrom: function(creatures) {
+		var pos = this.creature.position;
+		var _g1 = 0;
+		var _g = this.rangeInSquares;
+		while(_g1 < _g) {
+			var i = _g1++;
+			pos = this.creature.world.positionInDirection(pos,this.direction);
+			if(this.canUseOnAnyCreatureFromElements(this.creature.world.elementsAtPosition(pos),creatures)) {
+				return true;
+			}
+			if(!this.creature.world.noBlockingElementsAt(pos,false)) {
+				return false;
+			}
+		}
+		return false;
+	}
+	,'use': function() {
+		var pos = this.creature.position;
+		var _g1 = 0;
+		var _g = this.rangeInSquares;
+		while(_g1 < _g) {
+			var i = _g1++;
+			pos = this.creature.world.positionInDirection(pos,this.direction);
+			if(common_ArrayExtensions.any(this.creature.world.elementsAtPosition(pos),function(elem) {
+				return js_Boot.__instanceof(elem,worldElements_creatures_Creature);
+			})) {
+				worldElements_creatures_actions_SpecialDirectionalAttack.prototype.useOnElement.call(this,Lambda.find(this.creature.world.elementsAtPosition(pos),function(elem1) {
+					return js_Boot.__instanceof(elem1,worldElements_creatures_Creature);
+				}));
+				break;
+			}
+			if(!this.creature.world.noBlockingElementsAt(pos,false)) {
+				break;
+			}
+		}
+	}
+	,__class__: worldElements_creatures_actions_RangedSpecialDirectionalAttack
+});
 var worldElements_creatures_actions_StopTakeOver = function(creature) {
 	worldElements_creatures_actions_CreatureAction.call(this,creature);
 	this.abilityName = "Stop Mind Control";
@@ -3808,6 +4509,11 @@ worldElements_creatures_movement_Movement.prototype = {
 				++_g;
 				if(elem != creature && elem.hasActionFor(creature)) {
 					elem.performActionFor(creature);
+					var elementsHere2 = elementsHere.slice();
+					HxOverrides.remove(elementsHere2,elem);
+					if(elem.moveAfterActionsForThis && !this.isBlockingElementIn(world,elementsHere2)) {
+						creature.set_position(newPosition);
+					}
 					break;
 				}
 			}
@@ -3986,7 +4692,7 @@ worldElements_creatures_movement_StillMovement.prototype = $extend(worldElements
 	}
 	,__class__: worldElements_creatures_movement_StillMovement
 });
-var worldElements_creatures_stats_CreatureStats = function(hp,ap,attack,defence) {
+var worldElements_creatures_stats_CreatureStats = function(creature,hp,ap,attack,defence) {
 	if(defence == null) {
 		defence = 0;
 	}
@@ -3997,6 +4703,7 @@ var worldElements_creatures_stats_CreatureStats = function(hp,ap,attack,defence)
 	this.maxAP = ap;
 	this.attack = attack;
 	this.defence = defence;
+	this.creature = creature;
 	this.hp = hp;
 	this.ap = ap;
 	this.speed = 100;
@@ -4008,8 +4715,13 @@ var worldElements_creatures_stats_CreatureStats = function(hp,ap,attack,defence)
 };
 worldElements_creatures_stats_CreatureStats.__name__ = true;
 worldElements_creatures_stats_CreatureStats.prototype = {
-	getInfo: function() {
-		return "HP: " + this.hp + "/" + this.maxHP + "; AP: " + this.ap + "/" + this.maxAP;
+	get_speed: function() {
+		return Math.round(this.speed * (1 + common_ArrayExtensions.sum(this.creature.get_statusModifiers(),function(sm) {
+			return sm.get_modifySpeed();
+		})));
+	}
+	,getInfo: function() {
+		return "HP: " + this.hp + "/" + this.maxHP + "; AP: " + this.ap + "/" + this.maxAP + "; ATK: " + this.attack;
 	}
 	,setMaxHP: function(newMaxHP) {
 		var diff = newMaxHP - this.maxHP;
@@ -4024,6 +4736,11 @@ worldElements_creatures_stats_CreatureStats.prototype = {
 	,setAttack: function(attack) {
 		this.attack = attack;
 	}
+	,setAPRegen: function(regen) {
+		this.apRegen = regen;
+		var val1 = this.timeToNextAPRegen;
+		this.timeToNextAPRegen = regen < val1 ? regen : val1;
+	}
 	,gainHP: function(gain) {
 		var val1 = this.hp + gain;
 		var val2 = this.maxHP;
@@ -4037,28 +4754,17 @@ worldElements_creatures_stats_CreatureStats.prototype = {
 	,setCritChance: function(chance) {
 		this.critChance = chance;
 	}
+	,setSpeed: function(speed) {
+		this.speed = speed;
+	}
 	,__class__: worldElements_creatures_stats_CreatureStats
-};
-var worldElements_creatures_statusModifiers_StatusModifier = function(creature) {
-	this.creature = creature;
-	this.init();
-};
-worldElements_creatures_statusModifiers_StatusModifier.__name__ = true;
-worldElements_creatures_statusModifiers_StatusModifier.prototype = {
-	init: function() {
-	}
-	,onTurn: function() {
-	}
-	,makesCreatureAggressive: function(creature) {
-		return false;
-	}
-	,__class__: worldElements_creatures_statusModifiers_StatusModifier
 };
 var worldElements_creatures_statusEffects_StatusEffect = function(creature) {
 	this.negative = true;
 	this.ended = false;
 	this.name = "";
-	worldElements_creatures_statusModifiers_StatusModifier.call(this,creature);
+	this.creature = creature;
+	worldElements_creatures_statusModifiers_StatusModifier.call(this);
 };
 worldElements_creatures_statusEffects_StatusEffect.__name__ = true;
 worldElements_creatures_statusEffects_StatusEffect.__super__ = worldElements_creatures_statusModifiers_StatusModifier;
@@ -4104,6 +4810,37 @@ worldElements_creatures_statusEffects_Poison.prototype = $extend(worldElements_c
 	}
 	,__class__: worldElements_creatures_statusEffects_Poison
 });
+var worldElements_creatures_statusEffects_Slowed = function(creature) {
+	worldElements_creatures_statusEffects_StatusEffect.call(this,creature);
+};
+worldElements_creatures_statusEffects_Slowed.__name__ = true;
+worldElements_creatures_statusEffects_Slowed.__super__ = worldElements_creatures_statusEffects_StatusEffect;
+worldElements_creatures_statusEffects_Slowed.prototype = $extend(worldElements_creatures_statusEffects_StatusEffect.prototype,{
+	get_modifySpeed: function() {
+		return -0.25;
+	}
+	,init: function() {
+		this.name = "Slowed";
+		this.goesAwayAfter = 20;
+	}
+	,onTurn: function() {
+		if(this.goesAwayAfter <= 0) {
+			if(this.creature.isInterestingForPlayer()) {
+				this.creature.world.info.addInfo("" + this.creature.getNameToUse() + " " + this.creature.getWereOrWas() + " no longer slowed.");
+			}
+			this.ended = true;
+		} else {
+			this.goesAwayAfter -= 1;
+		}
+	}
+	,getText: function() {
+		return "You are 25% slower. Ends after " + this.goesAwayAfter + " turns.";
+	}
+	,makesCreatureAggressive: function(creature) {
+		return js_Boot.__instanceof(creature,worldElements_creatures_Goblin);
+	}
+	,__class__: worldElements_creatures_statusEffects_Slowed
+});
 var worldElements_creatures_statusEffects_SplitOnByGoblin = function(creature) {
 	worldElements_creatures_statusEffects_StatusEffect.call(this,creature);
 };
@@ -4132,6 +4869,13 @@ worldElements_creatures_statusEffects_SplitOnByGoblin.prototype = $extend(worldE
 	}
 	,__class__: worldElements_creatures_statusEffects_SplitOnByGoblin
 });
+var worldElements_creatures_statusModifiers_SimpleStatusModifier = { __ename__ : true, __constructs__ : ["Forgetfullness","WorseSight"] };
+worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness = ["Forgetfullness",0];
+worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness.toString = $estr;
+worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness.__enum__ = worldElements_creatures_statusModifiers_SimpleStatusModifier;
+worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight = ["WorseSight",1];
+worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight.toString = $estr;
+worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight.__enum__ = worldElements_creatures_statusModifiers_SimpleStatusModifier;
 function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }

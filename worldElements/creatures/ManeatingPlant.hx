@@ -11,7 +11,6 @@ class ManeatingPlant extends Creature {
         stats.setMaxHP(7);
         stats.setMaxAP(3);
         stats.setAttack(3);
-        stats.speed = 100;
 
         creatureAttackVerb = "grabbed";
         creatureFullAttackVerb = "grab";
