@@ -1063,10 +1063,22 @@ var World = function(drawer) {
 	this.elements.push(new worldElements_Wall(this,new common_Point(6,1)));
 	this.elements.push(new worldElements_Wall(this,new common_Point(3,1)));
 	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,4)));
+	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,5)));
+	this.elements.push(new worldElements_creatures_Rat(this,new common_Point(5,6)));
+	this.elements.push(new worldElements_creatures_Goblin(this,new common_Point(7,3)));
+	this.elements.push(new worldElements_creatures_Goblin(this,new common_Point(9,2)));
+	this.elements.push(new worldElements_creatures_Goblin(this,new common_Point(11,4)));
 };
 World.__name__ = true;
 World.prototype = {
-	addElement: function(element) {
+	get_creatures: function() {
+		return this.elements.filter(function(elem) {
+			return js_Boot.__instanceof(elem,worldElements_creatures_Creature);
+		}).map(function(elem1) {
+			return elem1;
+		});
+	}
+	,addElement: function(element) {
 		this.elements.push(element);
 	}
 	,addToElementsAtPosition: function(element,position) {
@@ -2201,7 +2213,7 @@ worldElements_Wall.prototype = $extend(worldElements_WorldElement.prototype,{
 });
 var worldElements_creatures_Creature = function(world,position) {
 	this.wanderTo = null;
-	this.aggresiveToPlayer = false;
+	this.aggressiveToPlayer = false;
 	this.followTimeWithoutSee = 3;
 	this.lastSeenCreature = new haxe_ds_ObjectMap();
 	this.speedPoints = 0;
@@ -2218,6 +2230,17 @@ worldElements_creatures_Creature.__super__ = worldElements_WorldElement;
 worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.prototype,{
 	get_isBlocking: function() {
 		return true;
+	}
+	,get_statusModifiers: function() {
+		var mods = [];
+		var _g = 0;
+		var _g1 = this.statusEffects;
+		while(_g < _g1.length) {
+			var se = _g1[_g];
+			++_g;
+			mods.push(se);
+		}
+		return mods;
 	}
 	,init: function() {
 		this.movement = new worldElements_creatures_movement_BasicMovement();
@@ -2268,6 +2291,22 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			var v = _g1.h[_g.__id__] + 1;
 			_g1.set(_g,v);
 		}
+		this.stats.timeToNextAPRegen -= 1;
+		if(this.stats.ap == this.stats.maxAP) {
+			this.stats.timeToNextAPRegen = this.stats.apRegen;
+		}
+		if(this.stats.timeToNextAPRegen <= 0) {
+			this.stats.gainAP(1);
+			this.stats.timeToNextAPRegen = this.stats.apRegen;
+		}
+		this.stats.timeToNextHPRegen -= 1;
+		if(this.stats.hp == this.stats.maxHP) {
+			this.stats.timeToNextHPRegen = this.stats.hpRegen;
+		}
+		if(this.stats.timeToNextHPRegen <= 0) {
+			this.stats.gainHP(1);
+			this.stats.timeToNextHPRegen = this.stats.hpRegen;
+		}
 	}
 	,getInfo: function() {
 		var pre = "";
@@ -2316,7 +2355,7 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 	,shouldRemove: function() {
 		if(this.stats.hp <= 0) {
 			var tmp = this.world.info;
-			var str = "" + this.getNameToUse() + " has been defeated.";
+			var str = "" + this.getNameToUse() + " " + this.getHaveOrHas() + " been defeated.";
 			tmp.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
 			return true;
 		}
@@ -2336,7 +2375,10 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			return "the " + this.creatureTypeName;
 		}
 	}
-	,getReferenceToUse: function(itself) {
+	,getReferenceToUse: function(itself,object) {
+		if(object == null) {
+			object = false;
+		}
 		if(itself == null) {
 			itself = false;
 		}
@@ -2359,10 +2401,45 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			return "was";
 		}
 	}
+	,getHaveOrHas: function() {
+		if(this.world.player.ownBody == this || this.world.player.controllingBody == this) {
+			return "have";
+		} else {
+			return "has";
+		}
+	}
 	,addStatusEffect: function(statusEffect) {
 		this.statusEffects.push(statusEffect);
 	}
+	,makesCreatureAggressive: function(creature) {
+		return common_ArrayExtensions.any(this.get_statusModifiers(),function(sm) {
+			return sm.makesCreatureAggressive(creature);
+		});
+	}
 	,__class__: worldElements_creatures_Creature
+});
+var worldElements_creatures_Goblin = function(world,position) {
+	worldElements_creatures_Creature.call(this,world,position);
+};
+worldElements_creatures_Goblin.__name__ = true;
+worldElements_creatures_Goblin.__super__ = worldElements_creatures_Creature;
+worldElements_creatures_Goblin.prototype = $extend(worldElements_creatures_Creature.prototype,{
+	init: function() {
+		worldElements_creatures_Creature.prototype.init.call(this);
+		this.color = 8490792;
+		this.character = "g";
+		this.creatureTypeName = "goblin";
+		this.stats.setMaxHP(8);
+		this.stats.setMaxAP(3);
+		this.stats.setAttack(2);
+		this.stats.speed = 100;
+		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_SplitOnByGoblin,function(c) {
+			return new worldElements_creatures_statusEffects_SplitOnByGoblin(c);
+		},"{subject} split on {object}, making all goblins aggressive to {shortObject}!",3,"Spit","Spit on an enemy next to you, making all goblins aggressive to it."));
+		this.creatureAttackVerb = "hit";
+		this.creatureFullAttackVerb = "hit";
+	}
+	,__class__: worldElements_creatures_Goblin
 });
 var worldElements_creatures_Human = function(world,position) {
 	worldElements_creatures_Creature.call(this,world,position);
@@ -2397,14 +2474,16 @@ worldElements_creatures_Rat.prototype = $extend(worldElements_creatures_Creature
 		this.stats.setMaxHP(5);
 		this.stats.setMaxAP(1);
 		this.stats.setAttack(1);
-		this.stats.speed = 50;
+		this.stats.speed = 150;
 		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_Poison,function(c) {
 			return new worldElements_creatures_statusEffects_Poison(c);
-		},"{subject} poisoned {object}!",1));
+		},"{subject} poisoned {object}!",1,"Rat Poison","Inject poison into an enemy next to you."));
 	}
 	,__class__: worldElements_creatures_Rat
 });
 var worldElements_creatures_actions_CreatureAction = function(creature) {
+	this.abilityDescription = "";
+	this.abilityName = "";
 	this.creature = creature;
 };
 worldElements_creatures_actions_CreatureAction.__name__ = true;
@@ -2480,12 +2559,14 @@ worldElements_creatures_actions_DirectionAction.prototype = $extend(worldElement
 	}
 	,__class__: worldElements_creatures_actions_DirectionAction
 });
-var worldElements_creatures_actions_AfflictStatusEffect = function(creature,statusEffectType,makeStatusEffect,onAfflictText,ap) {
+var worldElements_creatures_actions_AfflictStatusEffect = function(creature,statusEffectType,makeStatusEffect,onAfflictText,ap,abilityName,abilityDescription) {
 	worldElements_creatures_actions_DirectionAction.call(this,creature);
 	this.statusEffectType = statusEffectType;
 	this.makeStatusEffect = makeStatusEffect;
 	this.onAfflictText = onAfflictText;
 	this.ap = ap;
+	this.abilityName = abilityName;
+	this.abilityDescription = abilityDescription;
 };
 worldElements_creatures_actions_AfflictStatusEffect.__name__ = true;
 worldElements_creatures_actions_AfflictStatusEffect.__super__ = worldElements_creatures_actions_DirectionAction;
@@ -2508,7 +2589,7 @@ worldElements_creatures_actions_AfflictStatusEffect.prototype = $extend(worldEle
 		creatureHere.addStatusEffect(this.makeStatusEffect(creatureHere));
 		if(this.creature.isInterestingForPlayer() || creatureHere.isInterestingForPlayer()) {
 			var tmp = this.creature.world.info;
-			var str = StringTools.replace(StringTools.replace(this.onAfflictText,"{subject}",this.creature.getNameToUse()),"object",creatureHere.getNameToUse());
+			var str = StringTools.replace(StringTools.replace(StringTools.replace(this.onAfflictText,"{subject}",this.creature.getNameToUse()),"{object}",creatureHere.getNameToUse()),"{shortObject}",creatureHere.getReferenceToUse(false,true));
 			tmp.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
 		}
 	}
@@ -2634,28 +2715,37 @@ worldElements_creatures_movement_BasicMovement.__name__ = true;
 worldElements_creatures_movement_BasicMovement.__super__ = worldElements_creatures_movement_Movement;
 worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements_creatures_movement_Movement.prototype,{
 	move: function(world,creature) {
-		var aggresiveToCreatures = creature.attackedBy.slice();
-		if(creature.aggresiveToPlayer && !common_ArrayExtensions.contains(aggresiveToCreatures,world.player.ownBody)) {
-			aggresiveToCreatures.push(world.player.ownBody);
+		var aggressiveToCreatures = creature.attackedBy.slice();
+		if(creature.aggressiveToPlayer && !common_ArrayExtensions.contains(aggressiveToCreatures,world.player.ownBody)) {
+			aggressiveToCreatures.push(world.player.ownBody);
 		}
-		var isAggresiveToThis = function(elem) {
+		var _g = 0;
+		var _g1 = world.get_creatures();
+		while(_g < _g1.length) {
+			var worldCreature = _g1[_g];
+			++_g;
+			if(worldCreature.makesCreatureAggressive(creature)) {
+				aggressiveToCreatures.push(worldCreature);
+			}
+		}
+		var isAggressiveToThis = function(elem) {
 			if(js_Boot.__instanceof(elem,worldElements_creatures_Creature)) {
-				return common_ArrayExtensions.contains(aggresiveToCreatures,elem);
+				return common_ArrayExtensions.contains(aggressiveToCreatures,elem);
 			} else {
 				return false;
 			}
 		};
 		var toTargets = world.pathfinder.find(creature.position,function(pos) {
-			return common_ArrayExtensions.any(world.elementsAtPosition(pos),isAggresiveToThis);
+			return common_ArrayExtensions.any(world.elementsAtPosition(pos),isAggressiveToThis);
 		},true);
 		var nearestTarget = null;
 		var nearestTargetInfo = null;
 		var nearestTargetDistance = 1000000;
-		var _g = 0;
-		while(_g < toTargets.length) {
-			var toTarget = toTargets[_g];
-			++_g;
-			var target = world.elementsAtPosition(toTarget.point).filter(isAggresiveToThis)[0];
+		var _g2 = 0;
+		while(_g2 < toTargets.length) {
+			var toTarget = toTargets[_g2];
+			++_g2;
+			var target = world.elementsAtPosition(toTarget.point).filter(isAggressiveToThis)[0];
 			var canSee = world.pathfinder.isVisible(creature.position,target.position);
 			if(canSee) {
 				creature.lastSeenCreature.set(target,0);
@@ -2667,7 +2757,7 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 			}
 		}
 		if(nearestTarget != null) {
-			if(!this.canUseAnyAbility(creature,aggresiveToCreatures)) {
+			if(!this.canUseAnyAbility(creature,aggressiveToCreatures)) {
 				this.moveInDirection(world,creature,nearestTargetInfo.inDirection);
 			}
 		} else {
@@ -2699,7 +2789,7 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 			}
 		}
 	}
-	,canUseAnyAbility: function(creature,aggresiveToCreatures) {
+	,canUseAnyAbility: function(creature,aggressiveToCreatures) {
 		var sortedActions = creature.actions.slice();
 		sortedActions.sort(function(x,y) {
 			return y.getPriority() - x.getPriority();
@@ -2709,7 +2799,10 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 			var ability = sortedActions[_g];
 			++_g;
 			if(creature.stats.ap >= ability.get_actionPoints() && ability.getPriority() >= 0) {
-				return ability.tryPossibleParameters(aggresiveToCreatures);
+				if(ability.tryPossibleParameters(aggressiveToCreatures)) {
+					creature.stats.ap -= ability.get_actionPoints();
+					return true;
+				}
 			}
 		}
 		return false;
@@ -2739,6 +2832,10 @@ var worldElements_creatures_stats_CreatureStats = function(hp,ap,attack,defence)
 	this.hp = hp;
 	this.ap = ap;
 	this.speed = 100;
+	this.apRegen = 10;
+	this.hpRegen = 10;
+	this.timeToNextAPRegen = 10;
+	this.timeToNextHPRegen = 10;
 };
 worldElements_creatures_stats_CreatureStats.__name__ = true;
 worldElements_creatures_stats_CreatureStats.prototype = {
@@ -2758,25 +2855,46 @@ worldElements_creatures_stats_CreatureStats.prototype = {
 	,setAttack: function(attack) {
 		this.attack = attack;
 	}
+	,gainHP: function(gain) {
+		var val1 = this.hp + gain;
+		var val2 = this.maxHP;
+		this.hp = val2 < val1 ? val2 : val1;
+	}
+	,gainAP: function(gain) {
+		var val1 = this.ap + gain;
+		var val2 = this.maxAP;
+		this.ap = val2 < val1 ? val2 : val1;
+	}
 	,__class__: worldElements_creatures_stats_CreatureStats
 };
-var worldElements_creatures_statusEffects_StatusEffect = function(creature) {
-	this.ended = false;
-	this.name = "";
+var worldElements_creatures_statusModifiers_StatusModifier = function(creature) {
 	this.creature = creature;
 	this.init();
 };
-worldElements_creatures_statusEffects_StatusEffect.__name__ = true;
-worldElements_creatures_statusEffects_StatusEffect.prototype = {
+worldElements_creatures_statusModifiers_StatusModifier.__name__ = true;
+worldElements_creatures_statusModifiers_StatusModifier.prototype = {
 	init: function() {
 	}
 	,onTurn: function() {
 	}
-	,getText: function() {
+	,makesCreatureAggressive: function(creature) {
+		return false;
+	}
+	,__class__: worldElements_creatures_statusModifiers_StatusModifier
+};
+var worldElements_creatures_statusEffects_StatusEffect = function(creature) {
+	this.ended = false;
+	this.name = "";
+	worldElements_creatures_statusModifiers_StatusModifier.call(this,creature);
+};
+worldElements_creatures_statusEffects_StatusEffect.__name__ = true;
+worldElements_creatures_statusEffects_StatusEffect.__super__ = worldElements_creatures_statusModifiers_StatusModifier;
+worldElements_creatures_statusEffects_StatusEffect.prototype = $extend(worldElements_creatures_statusModifiers_StatusModifier.prototype,{
+	getText: function() {
 		return "";
 	}
 	,__class__: worldElements_creatures_statusEffects_StatusEffect
-};
+});
 var worldElements_creatures_statusEffects_Poison = function(creature) {
 	worldElements_creatures_statusEffects_StatusEffect.call(this,creature);
 };
@@ -2793,13 +2911,16 @@ worldElements_creatures_statusEffects_Poison.prototype = $extend(worldElements_c
 		if(this.hitInTurns <= 0) {
 			this.hitsUntilEnd -= 1;
 			this.hitInTurns = this.hitEvery;
-			if(this.creature.isInterestingForPlayer()) {
+			var interesting = this.creature.isInterestingForPlayer();
+			if(interesting) {
 				this.creature.world.info.addInfo("Poison dealt 1 damage to " + this.creature.getNameToUse() + ".");
 			}
 			this.creature.stats.hp -= 1;
 			if(this.hitsUntilEnd <= 0) {
 				this.ended = true;
-				this.creature.world.info.addInfo("Then, " + this.creature.getReferenceToUse() + " " + this.creature.getWereOrWas() + " no longer poisoned.");
+				if(interesting) {
+					this.creature.world.info.addInfo("Then, " + this.creature.getReferenceToUse() + " " + this.creature.getWereOrWas() + " no longer poisoned.");
+				}
 			}
 		} else {
 			this.hitInTurns -= 1;
@@ -2809,6 +2930,34 @@ worldElements_creatures_statusEffects_Poison.prototype = $extend(worldElements_c
 		return "Deals one damage every " + (this.hitEvery + 1) + " turns. Next damage in " + (this.hitInTurns + 1) + " turns. Ends after " + this.hitsUntilEnd + " more hits.";
 	}
 	,__class__: worldElements_creatures_statusEffects_Poison
+});
+var worldElements_creatures_statusEffects_SplitOnByGoblin = function(creature) {
+	worldElements_creatures_statusEffects_StatusEffect.call(this,creature);
+};
+worldElements_creatures_statusEffects_SplitOnByGoblin.__name__ = true;
+worldElements_creatures_statusEffects_SplitOnByGoblin.__super__ = worldElements_creatures_statusEffects_StatusEffect;
+worldElements_creatures_statusEffects_SplitOnByGoblin.prototype = $extend(worldElements_creatures_statusEffects_StatusEffect.prototype,{
+	init: function() {
+		this.name = "Spit on by a goblin.";
+		this.goesAwayAfter = 30;
+	}
+	,onTurn: function() {
+		if(this.goesAwayAfter <= 0) {
+			if(this.creature.isInterestingForPlayer()) {
+				this.creature.world.info.addInfo("It was no longer possible to see or smell the goblin spit on " + this.creature.getReferenceToUse() + ".");
+			}
+			this.ended = true;
+		} else {
+			this.goesAwayAfter -= 1;
+		}
+	}
+	,getText: function() {
+		return "All goblins are aggressive to you! Ends after " + this.goesAwayAfter + " turns.";
+	}
+	,makesCreatureAggressive: function(creature) {
+		return js_Boot.__instanceof(creature,worldElements_creatures_Goblin);
+	}
+	,__class__: worldElements_creatures_statusEffects_SplitOnByGoblin
 });
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }

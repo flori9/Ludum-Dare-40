@@ -12,13 +12,16 @@ class AfflictStatusEffect extends DirectionAction {
     override function get_actionPoints() return ap;
 
     public function new(creature, statusEffectType:Class<StatusEffect>, makeStatusEffect:Creature->StatusEffect, onAfflictText /*{subject} poisoned {object}!*/:String,
-        ap:Int) {
+        ap:Int, abilityName:String, abilityDescription:String) {
         super(creature);
 
         this.statusEffectType = statusEffectType;
         this.makeStatusEffect = makeStatusEffect;
         this.onAfflictText = onAfflictText;
         this.ap = ap;
+        
+        this.abilityName = abilityName;
+        this.abilityDescription = abilityDescription;
     }
 
     public override function canUseOnElement(elementHere:WorldElement) {
@@ -29,7 +32,8 @@ class AfflictStatusEffect extends DirectionAction {
         var creatureHere:Creature = cast elementHere;
         creatureHere.addStatusEffect(makeStatusEffect(creatureHere));
         if (creature.isInterestingForPlayer() || creatureHere.isInterestingForPlayer()) {
-            creature.world.info.addInfo(onAfflictText.replace("{subject}", creature.getNameToUse()).replace("{object}", creatureHere.getNameToUse()).firstToUpper());
+            creature.world.info.addInfo(onAfflictText.replace("{subject}", creature.getNameToUse()).replace("{object}", creatureHere.getNameToUse())
+                .replace("{shortObject}", creatureHere.getReferenceToUse(false, true)).firstToUpper());
         }
     }
 }

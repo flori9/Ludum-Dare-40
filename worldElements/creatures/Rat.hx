@@ -12,7 +12,8 @@ class Rat extends Creature {
         stats.setMaxHP(5);
         stats.setMaxAP(1);
         stats.setAttack(1);
-        stats.speed = 50;
-        actions.push(new worldElements.creatures.actions.AfflictStatusEffect(this, Poison, function(c) return new Poison(c), "{subject} poisoned {object}!", 1));
+        stats.speed = 150;
+        actions.push(new worldElements.creatures.actions.AfflictStatusEffect(this, Poison, function(c) return new Poison(c), "{subject} poisoned {object}!", 1,
+            "Rat Poison", "Inject poison into an enemy next to you."));
     }
 }

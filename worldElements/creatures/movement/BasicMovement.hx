@@ -6,20 +6,24 @@ class BasicMovement extends Movement {
     }
 
     public override function move(world:World, creature:Creature) {
-        var aggresiveToCreatures = creature.attackedBy.copy();
-        if (creature.aggresiveToPlayer && !aggresiveToCreatures.contains(world.player.ownBody))
-            aggresiveToCreatures.push(world.player.ownBody);
+        var aggressiveToCreatures = creature.attackedBy.copy();
+        if (creature.aggressiveToPlayer && !aggressiveToCreatures.contains(world.player.ownBody))
+            aggressiveToCreatures.push(world.player.ownBody);
+        for (worldCreature in world.creatures) {
+            if (worldCreature.makesCreatureAggressive(creature))
+                aggressiveToCreatures.push(worldCreature);
+        }
 
-        function isAggresiveToThis(elem)
-            return Std.is(elem, Creature) && aggresiveToCreatures.contains(cast elem);
+        function isAggressiveToThis(elem)
+            return Std.is(elem, Creature) && aggressiveToCreatures.contains(cast elem);
 
         var toTargets = world.pathfinder.find(creature.position, function(pos)
-            return world.elementsAtPosition(pos).any(isAggresiveToThis), true);
+            return world.elementsAtPosition(pos).any(isAggressiveToThis), true);
 
         var nearestTarget = null, nearestTargetInfo = null, nearestTargetDistance = 1000000;
 
         for (toTarget in toTargets) {
-            var target:Creature = cast world.elementsAtPosition(toTarget.point).filter(isAggresiveToThis)[0];
+            var target:Creature = cast world.elementsAtPosition(toTarget.point).filter(isAggressiveToThis)[0];
             var canSee = world.pathfinder.isVisible(creature.position, target.position);
             if (canSee)
                 creature.lastSeenCreature[target] = 0;
@@ -32,7 +36,7 @@ class BasicMovement extends Movement {
         }
 
         if (nearestTarget != null) {
-            if (canUseAnyAbility(creature, aggresiveToCreatures)) {
+            if (canUseAnyAbility(creature, aggressiveToCreatures)) {
                 //We did an ability!
             }
             else
@@ -55,13 +59,17 @@ class BasicMovement extends Movement {
         }
     }
 
-    public function canUseAnyAbility(creature:Creature, aggresiveToCreatures:Array<Creature>):Bool {
+    public function canUseAnyAbility(creature:Creature, aggressiveToCreatures:Array<Creature>):Bool {
         //getPriority
         var sortedActions = creature.actions.copy();
         sortedActions.sort(function (x, y) return y.getPriority() - x.getPriority());
         for (ability in sortedActions) {
-            if (creature.stats.ap >= ability.actionPoints && ability.getPriority() >= 0)
-                return ability.tryPossibleParameters(aggresiveToCreatures);
+            if (creature.stats.ap >= ability.actionPoints && ability.getPriority() >= 0) {
+                if (ability.tryPossibleParameters(aggressiveToCreatures)) {
+                    creature.stats.ap -= ability.actionPoints;
+                    return true;
+                }
+            }
         }
         return false;
     }

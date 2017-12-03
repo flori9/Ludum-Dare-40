@@ -11,6 +11,12 @@ class CreatureStats {
     public var defence:Int;
     public var speed:Int;
 
+    public var apRegen:Int; //Turns
+    public var hpRegen:Int; //Turns
+
+    public var timeToNextAPRegen:Int;
+    public var timeToNextHPRegen:Int;
+
     public var maxHP:Int;
     public var maxAP:Int;
 
@@ -23,6 +29,10 @@ class CreatureStats {
         this.hp = hp;
         this.ap = ap;
         this.speed = 100;
+        apRegen = 10;
+        hpRegen = 10;
+        timeToNextAPRegen = 10;
+        timeToNextHPRegen = 10;
     }
 
     public function getInfo():String {
@@ -43,5 +53,23 @@ class CreatureStats {
 
     public function setAttack(attack) {
         this.attack = attack;
+    }
+
+    public function setHPRegen(regen) {
+        hpRegen = regen;
+        timeToNextHPRegen = Math.imin(timeToNextHPRegen, regen);
+    }
+
+    public function setAPRegen(regen) {
+        apRegen = regen;
+        timeToNextAPRegen = Math.imin(timeToNextAPRegen, regen);
+    }
+
+    public function gainHP(gain) {
+        hp = Math.imin(hp + gain, maxHP);
+    }
+
+    public function gainAP(gain) {
+        ap = Math.imin(ap + gain, maxAP);
     }
 }

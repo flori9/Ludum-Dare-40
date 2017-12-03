@@ -17,12 +17,14 @@ class Poison extends StatusEffect {
         if (hitInTurns <= 0) {
             hitsUntilEnd -= 1;
             hitInTurns = hitEvery;
-            if (creature.isInterestingForPlayer())
+            var interesting = creature.isInterestingForPlayer();
+            if (interesting)
                 creature.world.info.addInfo('Poison dealt 1 damage to ${creature.getNameToUse()}.');
         	creature.stats.hp -= 1;
             if (hitsUntilEnd <= 0) {
                 ended = true;
-                creature.world.info.addInfo('Then, ${creature.getReferenceToUse()} ${creature.getWereOrWas()} no longer poisoned.');
+                if (interesting)
+                    creature.world.info.addInfo('Then, ${creature.getReferenceToUse()} ${creature.getWereOrWas()} no longer poisoned.');
             }
         }
         else

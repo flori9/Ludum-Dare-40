@@ -1,5 +1,7 @@
 import worldElements.*;
 
+import worldElements.creatures.Creature;
+
 class World {
     public var elements:Array<WorldElement>;
     /**
@@ -24,6 +26,10 @@ class World {
 
     var extraUpdates:Array<WorldElement>;
 
+    public var creatures(get, never):Array<Creature>;
+    function get_creatures()
+        return elements.filter(function (elem) return Std.is(elem, Creature)).map(function (elem) return cast elem);
+
     public function new(drawer:Drawer) {
         this.drawer = drawer;
         this.pathfinder = new Pathfinder(this);
@@ -45,6 +51,11 @@ class World {
         elements.push(new Wall(this, new Point(6, 1)));
         elements.push(new Wall(this, new Point(3, 1)));
         elements.push(new worldElements.creatures.Rat(this, new Point(5, 4)));
+        elements.push(new worldElements.creatures.Rat(this, new Point(5, 5)));
+        elements.push(new worldElements.creatures.Rat(this, new Point(5, 6)));
+        elements.push(new worldElements.creatures.Goblin(this, new Point(7, 3)));
+        elements.push(new worldElements.creatures.Goblin(this, new Point(9, 2)));
+        elements.push(new worldElements.creatures.Goblin(this, new Point(11, 4)));
     }
 
     public function addElement(element:WorldElement) {

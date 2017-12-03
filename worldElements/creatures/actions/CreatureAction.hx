@@ -4,6 +4,8 @@ class CreatureAction {
     var creature:Creature;
     public var actionPoints(get, never):Int;
     function get_actionPoints() return 0;
+    public var abilityName:String = "";
+    public var abilityDescription:String = "";
 
     public function new(creature:Creature) {
         this.creature = creature;

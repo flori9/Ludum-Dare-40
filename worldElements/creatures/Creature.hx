@@ -3,6 +3,7 @@ import worldElements.creatures.movement.*;
 import worldElements.creatures.stats.CreatureStats;
 import worldElements.creatures.actions.*;
 import worldElements.creatures.statusEffects.StatusEffect;
+import worldElements.creatures.statusModifiers.StatusModifier;
 
 class Creature extends WorldElement {
     public var movement:Movement;
@@ -24,6 +25,14 @@ class Creature extends WorldElement {
 
     public var statusEffects:Array<StatusEffect>;
 
+    public var statusModifiers(get, never):Array<StatusModifier>;
+    function get_statusModifiers() {
+        var mods:Array<StatusModifier> = [];
+        for (se in statusEffects)
+            mods.push(se);
+        return mods;
+    }
+
     /**
      *  when we last saw things we want to follow
      */
@@ -33,9 +42,9 @@ class Creature extends WorldElement {
      */
     public var followTimeWithoutSee = 3;
     /**
-     *  Whether we're always aggresive towards the player
+     *  Whether we're always aggressive towards the player
      */
-    public var aggresiveToPlayer = false;
+    public var aggressiveToPlayer = false;
     public var wanderTo:Point = null;
 
     public override function init() {
@@ -82,6 +91,23 @@ class Creature extends WorldElement {
 
         for (creature in lastSeenCreature.keys()) {
             lastSeenCreature[creature] += 1;
+        }
+
+        //Regain HP and AP
+        stats.timeToNextAPRegen -= 1;
+        if (stats.ap == stats.maxAP)
+            stats.timeToNextAPRegen = stats.apRegen;
+        if (stats.timeToNextAPRegen <= 0) {
+            stats.gainAP(1);
+            stats.timeToNextAPRegen = stats.apRegen;
+        }
+
+        stats.timeToNextHPRegen -= 1;
+        if (stats.hp == stats.maxHP)
+            stats.timeToNextHPRegen = stats.hpRegen;
+        if (stats.timeToNextHPRegen <= 0) {
+            stats.gainHP(1);
+            stats.timeToNextHPRegen = stats.hpRegen;
         }
     }
 
@@ -130,7 +156,7 @@ class Creature extends WorldElement {
     public override function shouldRemove() {
         if (stats.hp <= 0) {
             //Yeah, this should be removed, and also show a message
-            world.info.addInfo('${getNameToUse()} has been defeated.'.firstToUpper());
+            world.info.addInfo('${getNameToUse()} ${getHaveOrHas()} been defeated.'.firstToUpper());
             return true;
         }
         return false;
@@ -154,11 +180,12 @@ class Creature extends WorldElement {
      *  Get a short reference, like "it"
      *  @param itself - 
      */
-    public function getReferenceToUse(itself:Bool = false) {
+    public function getReferenceToUse(itself:Bool = false, object:Bool = false) {
         if (world.player.ownBody == this || world.player.controllingBody == this)
             return itself ? "yourself" : "you";
         else
             return itself ? "itself" : "it";
+        //he/himself/him
     }
 
     public function getWereOrWas() {
@@ -168,7 +195,22 @@ class Creature extends WorldElement {
             return "was";
     }
 
+    public function getHaveOrHas() {
+        if (world.player.ownBody == this || world.player.controllingBody == this)
+            return "have";
+        else
+            return "has";
+    }
+
     public function addStatusEffect(statusEffect:StatusEffect) {
         statusEffects.push(statusEffect);
+    }
+
+    /**
+     *  Whether it makes the given creature aggressive to it.
+     *  @param creature - 
+     */
+    public function makesCreatureAggressive(creature:Creature) {
+        return statusModifiers.any(function (sm) return sm.makesCreatureAggressive(creature));
     }
 }
