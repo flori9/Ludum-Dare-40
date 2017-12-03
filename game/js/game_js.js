@@ -7,7 +7,7 @@ function $extend(from, fields) {
 	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
 	return proto;
 }
-var Color = { __ename__ : true, __constructs__ : ["Red","Green","Blue","Black","White","Gray","LightBlue","Purple","Yellow","DarkGray","LightGray"] };
+var Color = { __ename__ : true, __constructs__ : ["Red","Green","Blue","Black","White","Gray","LightBlue","Purple","Yellow","DarkGray","LightGray","DarkLightBlue"] };
 Color.Red = ["Red",0];
 Color.Red.toString = $estr;
 Color.Red.__enum__ = Color;
@@ -41,6 +41,9 @@ Color.DarkGray.__enum__ = Color;
 Color.LightGray = ["LightGray",10];
 Color.LightGray.toString = $estr;
 Color.LightGray.__enum__ = Color;
+Color.DarkLightBlue = ["DarkLightBlue",11];
+Color.DarkLightBlue.toString = $estr;
+Color.DarkLightBlue.__enum__ = Color;
 var Drawer = function(stage) {
 	this.stage = stage;
 	this.wallGraphics = new PIXI.Graphics();
@@ -85,12 +88,26 @@ Drawer.colorToInt = function(color) {
 		return 4210752;
 	case 10:
 		return 11579568;
+	case 11:
+		return 2191490;
 	}
 };
 Drawer.prototype = {
 	clear: function() {
 		this.clearLines(0,24);
 		this.wallGraphics.clear();
+	}
+	,destroy: function() {
+		var _g = 0;
+		while(_g < 24) {
+			var i = _g++;
+			var _g1 = 0;
+			while(_g1 < 50) {
+				var j = _g1++;
+				this.stage.removeChild(this.bitmaps[i][j]);
+			}
+		}
+		this.stage.removeChild(this.wallGraphics);
 	}
 	,clearLines: function(start,amount) {
 		var _g1 = start;
@@ -335,11 +352,16 @@ var Game = function(application,stage,gameRect) {
 	this.focusedElement = this.player;
 	this.info = new ui_InfoDisplay(this.keyboard,this.world,this,this.player);
 	this.world.info = this.info;
+	this.world.generateLevel();
 	this.drawWorld();
 };
 Game.__name__ = true;
 Game.prototype = {
-	update: function(timeMod) {
+	restartGame: function() {
+		this.drawer.destroy();
+		this.application.startGame();
+	}
+	,update: function(timeMod) {
 		this.keyboard.update();
 		this.focusedElement.update();
 		this.postUpdate();
@@ -523,6 +545,18 @@ Keyboard.prototype = {
 	}
 	,__class__: Keyboard
 };
+var Lambda = function() { };
+Lambda.__name__ = true;
+Lambda.find = function(it,f) {
+	var v = $iterator(it)();
+	while(v.hasNext()) {
+		var v1 = v.next();
+		if(f(v1)) {
+			return v1;
+		}
+	}
+	return null;
+};
 var pixi_plugins_app_Application = function() {
 	this._animationFrameId = null;
 	this.pixelRatio = 1;
@@ -628,12 +662,15 @@ Main.prototype = $extend(pixi_plugins_app_Application.prototype,{
 		this.loader = new GameLoader(function() {
 			console.log("loaded");
 			_gthis.loader = null;
-			_gthis.game = new Game(_gthis,_gthis.stage,_gthis.gameRect);
+			_gthis.startGame();
 		});
 		this.canvas.addEventListener("contextmenu",function(ev) {
 			ev.preventDefault();
 			return false;
 		});
+	}
+	,startGame: function() {
+		this.game = new Game(this,this.stage,this.gameRect);
 	}
 	,initConfig: function() {
 		try {
@@ -908,11 +945,13 @@ var Player = function(keyboard,world,game) {
 	world.addElement(this.ownBody);
 	this.controllingBody = this.ownBody;
 	this.statusEffectsMenuKey = Keyboard.getLetterCode("e");
-	this.actionsKey = Keyboard.getLetterCode("c");
+	this.actionsKey = 16;
 	this.waitKey = 190;
 	this.ownBody.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this.ownBody,worldElements_creatures_statusEffects_Poison,function(c) {
 		return new worldElements_creatures_statusEffects_Poison(c);
-	},"{subject} poisoned {object}!",1,"Poison","Inject poison into an enemy next to you."));
+	},"{subject} poisoned {object}!",1,"Poisonous Strike","Poison an enemy next to you."));
+	this.ownBody.actions.push(new worldElements_creatures_actions_Dash(this.ownBody));
+	this.ownBody.actions.push(new worldElements_creatures_actions_TakeOverEnemy(this.ownBody));
 };
 Player.__name__ = true;
 Player.__super__ = Focusable;
@@ -920,7 +959,30 @@ Player.prototype = $extend(Focusable.prototype,{
 	get_showsWorld: function() {
 		return true;
 	}
+	,afterTakeover: function() {
+		this.controllingBody.originalMovement = this.controllingBody.movement;
+		this.controllingBody.movement = new worldElements_creatures_movement_NoMovement();
+		this.controllingBody.actions.push(new worldElements_creatures_actions_StopTakeOver(this.ownBody));
+	}
+	,stopTakeover: function() {
+		if(this.controllingBody.stats.hp > 0) {
+			this.controllingBody.movement = this.controllingBody.originalMovement;
+			var stopTakeOverAction = Lambda.find(this.controllingBody.actions,function(ac) {
+				return js_Boot.__instanceof(ac,worldElements_creatures_actions_StopTakeOver);
+			});
+			if(stopTakeOverAction != null) {
+				HxOverrides.remove(this.controllingBody.actions,stopTakeOverAction);
+			}
+		}
+		this.controllingBody = this.ownBody;
+	}
 	,update: function() {
+		if(this.ownBody.stats.hp <= 0) {
+			if(this.keyboard.anyConfirm()) {
+				this.game.restartGame();
+			}
+			return;
+		}
 		var xMove = 0;
 		var yMove = 0;
 		if(this.keyboard.leftKey()) {
@@ -961,6 +1023,17 @@ Player.prototype = $extend(Focusable.prototype,{
 			this.game.afterStep();
 		}
 	}
+	,afterStep: function() {
+		if(this.ownBody.stats.hp <= 0) {
+			this.controllingBody = this.ownBody;
+			this.world.addElement(new worldElements_PlayerBody(this.world,new common_Point(this.ownBody.position.x,this.ownBody.position.y)));
+			this.game.info.addInfo("You are dead! Press Space or Enter to restart.");
+		}
+		if(this.controllingBody.stats.hp <= 0) {
+			this.stopTakeover();
+			this.game.info.addInfo("You found yourself back in your own body.");
+		}
+	}
 	,showStatusEffects: function() {
 		var _g = [];
 		var _g1 = 0;
@@ -984,6 +1057,10 @@ Player.prototype = $extend(Focusable.prototype,{
 		var actionMenuItems = [];
 		var menu;
 		var showFail = function(text) {
+			menu.info.clear();
+			_gthis.game.focus(menu);
+			menu.info.addInfo(text);
+			menu.info.processInfo(_gthis.game.drawer);
 		};
 		var _g = 0;
 		var _g1 = this.controllingBody.actions;
@@ -993,24 +1070,35 @@ Player.prototype = $extend(Focusable.prototype,{
 			if(action[0] != this.controllingBody.basicAttack) {
 				actionMenuItems.push(new ui_MenuItem(action[0].abilityName + " (" + action[0].get_actionPoints() + " AP)",action[0].abilityDescription,(function(action1) {
 					return function() {
-						if(js_Boot.__instanceof(action1[0],worldElements_creatures_actions_DirectionAction)) {
-							var directionAction = action1[0];
-							var dirMenu = new ui_ChooseDirection(_gthis.keyboard,_gthis.world,_gthis.game,"Choose a direction to use " + action1[0].abilityName + ".",(function(action2) {
-								return function(dir) {
-									directionAction.setParameter(dir);
-									if(directionAction.canUse()) {
-										_gthis.controllingBody.stats.ap -= action2[0].get_actionPoints();
-										_gthis.game.focus(_gthis,false);
-										_gthis.game.beforeStep();
-										directionAction["use"]();
-										_gthis.controllingBody.hasMoved = true;
-										_gthis.game.afterStep();
-									} else {
-										showFail("You can't use " + action2[0].abilityName + " in that direction!");
-									}
-								};
-							})(action1),menu);
-							_gthis.game.focus(dirMenu);
+						if(_gthis.controllingBody.stats.ap >= action1[0].get_actionPoints()) {
+							if(js_Boot.__instanceof(action1[0],worldElements_creatures_actions_DirectionAction)) {
+								var directionAction = action1[0];
+								var dirMenu = new ui_ChooseDirection(_gthis.keyboard,_gthis.world,_gthis.game,"Choose a direction to use " + action1[0].abilityName + ".",(function(action2) {
+									return function(dir) {
+										directionAction.setParameter(dir);
+										if(directionAction.canUse()) {
+											_gthis.controllingBody.stats.ap -= action2[0].get_actionPoints();
+											_gthis.game.focus(_gthis,false);
+											_gthis.game.beforeStep();
+											directionAction["use"]();
+											_gthis.controllingBody.hasMoved = true;
+											_gthis.game.afterStep();
+										} else {
+											showFail("You can't use " + action2[0].abilityName + " in that direction!");
+										}
+									};
+								})(action1),menu);
+								_gthis.game.focus(dirMenu);
+							} else if(action1[0].canUse()) {
+								_gthis.controllingBody.stats.ap -= action1[0].get_actionPoints();
+								_gthis.game.focus(_gthis,false);
+								_gthis.game.beforeStep();
+								action1[0]["use"]();
+								_gthis.controllingBody.hasMoved = true;
+								_gthis.game.afterStep();
+							} else {
+								showFail("You can't use " + action1[0].abilityName + " at the moment!");
+							}
 						} else {
 							showFail("You don't have enough AP to use " + action1[0].abilityName + "!");
 						}
@@ -1081,6 +1169,45 @@ StringTools.trim = function(s) {
 StringTools.replace = function(s,sub,by) {
 	return s.split(sub).join(by);
 };
+var Type = function() { };
+Type.__name__ = true;
+Type.createInstance = function(cl,args) {
+	var _g = args.length;
+	switch(_g) {
+	case 0:
+		return new cl();
+	case 1:
+		return new cl(args[0]);
+	case 2:
+		return new cl(args[0],args[1]);
+	case 3:
+		return new cl(args[0],args[1],args[2]);
+	case 4:
+		return new cl(args[0],args[1],args[2],args[3]);
+	case 5:
+		return new cl(args[0],args[1],args[2],args[3],args[4]);
+	case 6:
+		return new cl(args[0],args[1],args[2],args[3],args[4],args[5]);
+	case 7:
+		return new cl(args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
+	case 8:
+		return new cl(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
+	case 9:
+		return new cl(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8]);
+	case 10:
+		return new cl(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9]);
+	case 11:
+		return new cl(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10]);
+	case 12:
+		return new cl(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11]);
+	case 13:
+		return new cl(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12]);
+	case 14:
+		return new cl(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12],args[13]);
+	default:
+		throw new js__$Boot_HaxeError("Too many arguments");
+	}
+};
 var World = function(drawer) {
 	this.viewY = 0;
 	this.viewX = 0;
@@ -1132,6 +1259,9 @@ World.prototype = {
 			return elem1;
 		});
 	}
+	,generateLevel: function() {
+		new dungeonGeneration_DungeonGenerator(this);
+	}
 	,addElement: function(element) {
 		this.elements.push(element);
 	}
@@ -1181,6 +1311,7 @@ World.prototype = {
 			element1.postUpdate();
 		}
 		this.removeElementsWhereNeeded();
+		this.player.afterStep();
 		this.draw();
 	}
 	,requestExtraUpdate: function(elem) {
@@ -1200,16 +1331,31 @@ World.prototype = {
 	,draw: function() {
 		var _gthis = this;
 		this.drawer.setWorldView(0,2,this.viewX,this.viewY,50,20);
-		var _g = 0;
-		var _g1 = this.elements;
-		while(_g < _g1.length) {
-			var element = _g1[_g];
-			++_g;
+		var visibleElements = [];
+		var _g = [];
+		var _g2 = 0;
+		var _g1 = this.width;
+		while(_g2 < _g1) {
+			var i = _g2++;
+			var _g3 = [];
+			var _g5 = 0;
+			var _g4 = this.height;
+			while(_g5 < _g4) {
+				var j = _g5++;
+				_g3.push(false);
+			}
+			_g.push(_g3);
+		}
+		var elemAt = _g;
+		var _g11 = 0;
+		var _g21 = this.elements;
+		while(_g11 < _g21.length) {
+			var element = _g21[_g11];
+			++_g11;
 			element.isCurrentlyVisible = false;
 			if(this.pathfinder.isVisible(this.player.controllingBody.position,element.position,true)) {
-				element.draw(this.drawer,false);
-				element.seenByPlayer = true;
-				element.isCurrentlyVisible = true;
+				visibleElements.push(element);
+				elemAt[element.position.x][element.position.y] = true;
 			} else if(element.get_isEasierVisible()) {
 				var nowSeen = false;
 				var anyIndirectlyVisible = [false];
@@ -1222,23 +1368,75 @@ World.prototype = {
 				})(anyIndirectlyVisible));
 				if(anyIndirectlyVisible[0]) {
 					nowSeen = true;
-					element.isCurrentlyVisible = true;
-					element.draw(this.drawer,false);
-					element.seenByPlayer = true;
+					visibleElements.push(element);
+					elemAt[element.position.x][element.position.y] = true;
 				}
-				if(!nowSeen && element.seenByPlayer) {
+				if(!nowSeen && element.get_isStatic() && element.seenByPlayer) {
 					element.draw(this.drawer,true);
 					element.isCurrentlyVisible = true;
 				}
+			} else if(element.get_isStatic() && element.seenByPlayer) {
+				element.draw(this.drawer,true);
 			}
 		}
-		var _g2 = 0;
-		var _g11 = this.elements;
-		while(_g2 < _g11.length) {
-			var element1 = _g11[_g2];
-			++_g2;
-			if(js_Boot.__instanceof(element1,worldElements_Wall)) {
-				var wall = element1;
+		var _g12 = [];
+		var _g31 = 0;
+		var _g22 = this.width;
+		while(_g31 < _g22) {
+			var i1 = _g31++;
+			var _g41 = [];
+			var _g6 = 0;
+			var _g51 = this.height;
+			while(_g6 < _g51) {
+				var j1 = _g6++;
+				_g41.push(false);
+			}
+			_g12.push(_g41);
+		}
+		var shouldBeVisible = _g12;
+		var floodFill = null;
+		floodFill = function(x,y) {
+			shouldBeVisible[x][y] = true;
+			var xx = x - 1;
+			var yy = y;
+			if(_gthis.isPositionInWorld(new common_Point(xx,yy)) && (!shouldBeVisible[xx][yy] && elemAt[xx][yy])) {
+				floodFill(xx,yy);
+			}
+			var xx1 = x + 1;
+			var yy1 = y;
+			if(_gthis.isPositionInWorld(new common_Point(xx1,yy1)) && (!shouldBeVisible[xx1][yy1] && elemAt[xx1][yy1])) {
+				floodFill(xx1,yy1);
+			}
+			var xx2 = x;
+			var yy2 = y - 1;
+			if(_gthis.isPositionInWorld(new common_Point(xx2,yy2)) && (!shouldBeVisible[xx2][yy2] && elemAt[xx2][yy2])) {
+				floodFill(xx2,yy2);
+			}
+			var xx3 = x;
+			var yy3 = y + 1;
+			if(_gthis.isPositionInWorld(new common_Point(xx3,yy3)) && (!shouldBeVisible[xx3][yy3] && elemAt[xx3][yy3])) {
+				floodFill(xx3,yy3);
+			}
+		};
+		var floodFill1 = floodFill;
+		floodFill1(this.player.controllingBody.position.x,this.player.controllingBody.position.y);
+		var _g23 = 0;
+		while(_g23 < visibleElements.length) {
+			var element1 = visibleElements[_g23];
+			++_g23;
+			if(shouldBeVisible[element1.position.x][element1.position.y]) {
+				element1.isCurrentlyVisible = true;
+				element1.draw(this.drawer,false);
+				element1.seenByPlayer = true;
+			}
+		}
+		var _g24 = 0;
+		var _g32 = this.elements;
+		while(_g24 < _g32.length) {
+			var element2 = _g32[_g24];
+			++_g24;
+			if(js_Boot.__instanceof(element2,worldElements_Wall)) {
+				var wall = element2;
 				if(!wall.seenByPlayer) {
 					var allAroundSeen = [true];
 					this.forEachDirectionFromPoint(wall.position,(function(allAroundSeen1) {
@@ -1345,10 +1543,13 @@ World.prototype = {
 			var element = _g1[_g];
 			++_g;
 			if(element.isCurrentlyVisible) {
-				if(help != "") {
-					help += "\n";
+				var thisInfo = element.getInfo();
+				if(thisInfo != "") {
+					if(help != "") {
+						help += "\n";
+					}
+					help += thisInfo;
 				}
-				help += element.getInfo();
 			}
 		}
 		return help;
@@ -1357,6 +1558,26 @@ World.prototype = {
 };
 var common_ArrayExtensions = function() { };
 common_ArrayExtensions.__name__ = true;
+common_ArrayExtensions.min = function(array,fn) {
+	if(fn == null) {
+		fn = function(val) {
+			return val;
+		};
+	}
+	var arrayMinVal = Infinity;
+	var arrayMinItem = null;
+	var _g = 0;
+	while(_g < array.length) {
+		var item = array[_g];
+		++_g;
+		var val1 = fn(item);
+		if(val1 < arrayMinVal) {
+			arrayMinItem = item;
+			arrayMinVal = val1;
+		}
+	}
+	return arrayMinItem;
+};
 common_ArrayExtensions.any = function(array,fn) {
 	var _g = 0;
 	while(_g < array.length) {
@@ -1379,7 +1600,26 @@ var common_Rectangle = function(x,y,width,height) {
 };
 common_Rectangle.__name__ = true;
 common_Rectangle.prototype = {
-	__class__: common_Rectangle
+	get_x2: function() {
+		return this.x + this.width;
+	}
+	,get_y2: function() {
+		return this.y + this.height;
+	}
+	,get_centerX: function() {
+		return this.x + (this.width / 2 | 0);
+	}
+	,get_centerY: function() {
+		return this.y + (this.height / 2 | 0);
+	}
+	,overlaps: function(other) {
+		if(this.x < other.get_x2() && this.get_x2() > other.x && this.y < other.get_y2()) {
+			return this.get_y2() > other.y;
+		} else {
+			return false;
+		}
+	}
+	,__class__: common_Rectangle
 };
 var common_Point = function(x,y) {
 	this.x = x;
@@ -1404,6 +1644,17 @@ common_Direction.Down.toString = $estr;
 common_Direction.Down.__enum__ = common_Direction;
 var common_Random = function() { };
 common_Random.__name__ = true;
+common_Random.getFloat = function(val0,val1) {
+	var min = 0;
+	var max = 1;
+	if(val0 != null && val1 != null) {
+		min = val0;
+		max = val1;
+	} else if(val0 != null) {
+		max = val0;
+	}
+	return Math.random() * (max - min) + min;
+};
 common_Random.getInt = function(val0,val1) {
 	var min = 0;
 	var max = 2147483647;
@@ -1606,6 +1857,479 @@ de_polygonal_ds_tools_NativeArrayTools.blit = function(src,srcPos,dst,dstPos,n) 
 			}
 		}
 	}
+};
+var dungeonGeneration_RoomType = { __ename__ : true, __constructs__ : ["PlayerStart","Treasure","Monsters","End","None"] };
+dungeonGeneration_RoomType.PlayerStart = ["PlayerStart",0];
+dungeonGeneration_RoomType.PlayerStart.toString = $estr;
+dungeonGeneration_RoomType.PlayerStart.__enum__ = dungeonGeneration_RoomType;
+dungeonGeneration_RoomType.Treasure = ["Treasure",1];
+dungeonGeneration_RoomType.Treasure.toString = $estr;
+dungeonGeneration_RoomType.Treasure.__enum__ = dungeonGeneration_RoomType;
+dungeonGeneration_RoomType.Monsters = ["Monsters",2];
+dungeonGeneration_RoomType.Monsters.toString = $estr;
+dungeonGeneration_RoomType.Monsters.__enum__ = dungeonGeneration_RoomType;
+dungeonGeneration_RoomType.End = ["End",3];
+dungeonGeneration_RoomType.End.toString = $estr;
+dungeonGeneration_RoomType.End.__enum__ = dungeonGeneration_RoomType;
+dungeonGeneration_RoomType.None = ["None",4];
+dungeonGeneration_RoomType.None.toString = $estr;
+dungeonGeneration_RoomType.None.__enum__ = dungeonGeneration_RoomType;
+var dungeonGeneration_DungeonGenerator = function(world,floor) {
+	if(floor == null) {
+		floor = 1;
+	}
+	this.world = world;
+	this.floor = floor;
+	this.width = world.width;
+	this.height = world.height;
+	this.playerBody = world.player.ownBody;
+	this.clearWorld();
+	this.generateWorld();
+};
+dungeonGeneration_DungeonGenerator.__name__ = true;
+dungeonGeneration_DungeonGenerator.lineIntersectsRect = function(rect,p1X,p1Y,p2X,p2Y) {
+	return dungeonGeneration_DungeonGenerator.segmentIntersectRectangle(rect.x,rect.y,rect.x + rect.width,rect.y + rect.height,p1X,p1Y,p2X,p2Y);
+};
+dungeonGeneration_DungeonGenerator.segmentIntersectRectangle = function(rectangleMinX,rectangleMinY,rectangleMaxX,rectangleMaxY,p1X,p1Y,p2X,p2Y) {
+	var minX = p1X;
+	var maxX = p2X;
+	if(p1X > p2X) {
+		minX = p2X;
+		maxX = p1X;
+	}
+	if(maxX > rectangleMaxX) {
+		maxX = rectangleMaxX;
+	}
+	if(minX < rectangleMinX) {
+		minX = rectangleMinX;
+	}
+	if(minX > maxX) {
+		return false;
+	}
+	var minY = p1Y;
+	var maxY = p2Y;
+	var dx = p2X - p1X;
+	if(Math.abs(dx) > 0.0000001) {
+		var a = (p2Y - p1Y) / dx;
+		var b = p1Y - a * p1X;
+		minY = a * minX + b;
+		maxY = a * maxX + b;
+	}
+	if(minY > maxY) {
+		var tmp = maxY;
+		maxY = minY;
+		minY = tmp;
+	}
+	if(maxY > rectangleMaxY) {
+		maxY = rectangleMaxY;
+	}
+	if(minY < rectangleMinY) {
+		minY = rectangleMinY;
+	}
+	if(minY > maxY) {
+		return false;
+	}
+	return true;
+};
+dungeonGeneration_DungeonGenerator.prototype = {
+	clearWorld: function() {
+		this.world.elements = [];
+		var _g = [];
+		var _g2 = 0;
+		var _g1 = this.width;
+		while(_g2 < _g1) {
+			var i = _g2++;
+			var _g3 = [];
+			var _g5 = 0;
+			var _g4 = this.height;
+			while(_g5 < _g4) {
+				var j = _g5++;
+				_g3.push([]);
+			}
+			_g.push(_g3);
+		}
+		this.world.elementsByPosition = _g;
+	}
+	,generateWorld: function() {
+		this.generateBasicDungeon();
+	}
+	,generateBasicDungeon: function() {
+		var _g = [];
+		var _g2 = 0;
+		var _g1 = this.width;
+		while(_g2 < _g1) {
+			var x = _g2++;
+			var _g3 = [];
+			var _g5 = 0;
+			var _g4 = this.height;
+			while(_g5 < _g4) {
+				var y = _g5++;
+				_g3.push(false);
+			}
+			_g.push(_g3);
+		}
+		var basicDungeon = _g;
+		var rooms = [];
+		var minWidth = 3;
+		var maxWidth = 6;
+		var minHeight = 3;
+		var maxHeight = 6;
+		var minDistance = 2;
+		var minimumRoomAmount = common_Random.getInt(11,16);
+		var maxIterations = 10000;
+		var i = 0;
+		while(rooms.length < minimumRoomAmount && ++i < maxIterations) {
+			var rectWidth = common_Random.getInt(minWidth,maxWidth);
+			var rectHeight = common_Random.getInt(minHeight,maxHeight);
+			if(rectWidth == 3 && rectHeight == 3) {
+				if(common_Random.getInt(2) == 1) {
+					rectWidth = 4;
+				} else {
+					rectHeight = 4;
+				}
+			}
+			var newRoom = new common_Rectangle(common_Random.getInt(1,this.width - rectWidth),common_Random.getInt(1,this.height - rectHeight),rectWidth,rectHeight);
+			var newRoomCollider = new common_Rectangle(newRoom.x - minDistance,newRoom.y - minDistance,newRoom.width + minDistance * 2,newRoom.height + minDistance * 2);
+			var overlaps = false;
+			var _g11 = 0;
+			while(_g11 < rooms.length) {
+				var rect = rooms[_g11];
+				++_g11;
+				if(rect.overlaps(newRoomCollider)) {
+					overlaps = true;
+					break;
+				}
+			}
+			if(!overlaps) {
+				rooms.push(newRoom);
+			}
+		}
+		var paths = [];
+		var _g21 = 0;
+		var _g12 = rooms.length;
+		while(_g21 < _g12) {
+			var i1 = _g21++;
+			var room = rooms[i1];
+			var _g41 = i1 + 1;
+			var _g31 = rooms.length;
+			while(_g41 < _g31) {
+				var j = _g41++;
+				var otherRoom = rooms[j];
+				var hasIntersection = false;
+				var _g51 = 0;
+				while(_g51 < rooms.length) {
+					var possiblyIntersectingRoom = rooms[_g51];
+					++_g51;
+					if(possiblyIntersectingRoom == room || possiblyIntersectingRoom == otherRoom) {
+						continue;
+					}
+					if(dungeonGeneration_DungeonGenerator.lineIntersectsRect(possiblyIntersectingRoom,room.get_centerX(),room.get_centerY(),otherRoom.get_centerX(),otherRoom.get_centerY())) {
+						hasIntersection = true;
+						break;
+					}
+				}
+				if(!hasIntersection) {
+					paths.push(new dungeonGeneration_RoomPath(room,otherRoom));
+				}
+			}
+		}
+		var retry = true;
+		var newPaths = [];
+		while(retry) {
+			retry = false;
+			var unusedRooms = rooms.slice();
+			var usedRooms = [rooms[0]];
+			HxOverrides.remove(unusedRooms,usedRooms[0]);
+			while(unusedRooms.length >= 0) {
+				var minimumWidthPath = null;
+				var minimumLength = 100000.0;
+				var newPathRoom = null;
+				var _g13 = 0;
+				while(_g13 < paths.length) {
+					var path = paths[_g13];
+					++_g13;
+					var wouldBeNewRoom = null;
+					if(common_ArrayExtensions.contains(unusedRooms,path.room1) && common_ArrayExtensions.contains(usedRooms,path.room2)) {
+						wouldBeNewRoom = path.room1;
+					} else if(common_ArrayExtensions.contains(unusedRooms,path.room2) && common_ArrayExtensions.contains(usedRooms,path.room1)) {
+						wouldBeNewRoom = path.room2;
+					}
+					if(wouldBeNewRoom != null) {
+						var _this_y;
+						var _this_x = path.room1.get_centerX();
+						_this_y = path.room1.get_centerY();
+						var otherPoint_y;
+						var otherPoint_x = path.room2.get_centerX();
+						otherPoint_y = path.room2.get_centerY();
+						var len = Math.abs(_this_x - otherPoint_x) + Math.abs(_this_y - otherPoint_y);
+						if(len < minimumLength) {
+							minimumLength = len;
+							newPathRoom = wouldBeNewRoom;
+							minimumWidthPath = path;
+						}
+					}
+				}
+				if(minimumWidthPath == null) {
+					if(unusedRooms.length >= 3) {
+						retry = true;
+						newPaths = [];
+					} else {
+						var _g14 = 0;
+						while(_g14 < unusedRooms.length) {
+							var room1 = unusedRooms[_g14];
+							++_g14;
+							HxOverrides.remove(rooms,room1);
+						}
+					}
+					break;
+				} else {
+					HxOverrides.remove(unusedRooms,newPathRoom);
+					usedRooms.push(newPathRoom);
+					newPaths.push(minimumWidthPath);
+				}
+			}
+		}
+		var oldPaths = paths;
+		paths = newPaths;
+		var suboptimalsFrom = paths.length;
+		var _g15 = 0;
+		while(_g15 < 5) {
+			var i2 = _g15++;
+			var path1 = common_Random.fromArray(oldPaths);
+			if(!common_ArrayExtensions.contains(paths,path1)) {
+				paths.push(path1);
+			}
+		}
+		var _g16 = 0;
+		while(_g16 < rooms.length) {
+			var room2 = rooms[_g16];
+			++_g16;
+			var _g32 = 0;
+			var _g22 = room2.width;
+			while(_g32 < _g22) {
+				var i3 = _g32++;
+				var _g52 = 0;
+				var _g42 = room2.height;
+				while(_g52 < _g42) {
+					var j1 = _g52++;
+					basicDungeon[room2.x + i3][room2.y + j1] = true;
+				}
+			}
+		}
+		var _g23 = 0;
+		var _g17 = paths.length;
+		while(_g23 < _g17) {
+			var i4 = _g23++;
+			var path2 = paths[i4];
+			var isSuboptimal = i4 >= suboptimalsFrom;
+			var setBasicDungeon = function(x1,y1) {
+				basicDungeon[x1][y1] = true;
+				return false;
+			};
+			var room11 = path2.room1;
+			var room21 = path2.room2;
+			var leftRoom = room11.x < room21.x ? room11 : room21;
+			var rightRoom = room11 == leftRoom ? room21 : room11;
+			var topRoom = room11.y < room21.y ? room11 : room21;
+			var bottomRoom = room11 == topRoom ? room21 : room11;
+			var val1 = room11.y;
+			var val2 = room21.y;
+			var yOverlapMin = val2 > val1 ? val2 : val1;
+			var val11 = room11.get_y2();
+			var val21 = room21.get_y2();
+			var yOverlapMax = val21 < val11 ? val21 : val11;
+			if(yOverlapMax > yOverlapMin) {
+				var yy = common_Random.getInt(yOverlapMin,yOverlapMax);
+				var _g43 = leftRoom.get_x2();
+				var _g33 = rightRoom.x;
+				while(_g43 < _g33) {
+					var xx = _g43++;
+					if(setBasicDungeon(xx,yy)) {
+						break;
+					}
+				}
+				continue;
+			}
+			var val12 = room11.x;
+			var val22 = room21.x;
+			var xOverlapMin = val22 > val12 ? val22 : val12;
+			var val13 = room11.get_x2();
+			var val23 = room21.get_x2();
+			var xOverlapMax = val23 < val13 ? val23 : val13;
+			if(xOverlapMax > xOverlapMin) {
+				var xx1 = common_Random.getInt(xOverlapMin,xOverlapMax);
+				var _g44 = topRoom.get_y2();
+				var _g34 = bottomRoom.y;
+				while(_g44 < _g34) {
+					var yy1 = _g44++;
+					if(setBasicDungeon(xx1,yy1)) {
+						break;
+					}
+				}
+				continue;
+			}
+			if(common_Random.getInt(2) == 1) {
+				var toX = common_Random.getInt(rightRoom.x,rightRoom.get_x2());
+				var fromY = common_Random.getInt(leftRoom.y,leftRoom.get_y2());
+				var stop = false;
+				var _g45 = leftRoom.get_x2();
+				var _g35 = toX + 1;
+				while(_g45 < _g35) {
+					var xx2 = _g45++;
+					if(setBasicDungeon(xx2,fromY)) {
+						stop = true;
+						break;
+					}
+				}
+				if(!stop) {
+					var val14 = fromY + 1;
+					var val24 = rightRoom.get_y2();
+					var minY = val24 < val14 ? val24 : val14;
+					var val25 = rightRoom.y;
+					var maxY = val25 > fromY ? val25 : fromY;
+					var _g46 = minY;
+					var _g36 = maxY;
+					while(_g46 < _g36) {
+						var yy2 = _g46++;
+						if(setBasicDungeon(toX,yy2)) {
+							break;
+						}
+					}
+				}
+			} else {
+				var toY = common_Random.getInt(bottomRoom.y,bottomRoom.get_y2());
+				var fromX = common_Random.getInt(topRoom.x,topRoom.get_x2());
+				var stop1 = false;
+				var _g47 = topRoom.get_y2();
+				var _g37 = toY + 1;
+				while(_g47 < _g37) {
+					var yy3 = _g47++;
+					if(setBasicDungeon(fromX,yy3)) {
+						stop1 = true;
+						break;
+					}
+				}
+				if(!stop1) {
+					var val15 = fromX + 1;
+					var val26 = bottomRoom.get_x2();
+					var minX = val26 < val15 ? val26 : val15;
+					var val27 = bottomRoom.x;
+					var maxX = val27 > fromX ? val27 : fromX;
+					var _g48 = minX;
+					var _g38 = maxX;
+					while(_g48 < _g38) {
+						var xx3 = _g48++;
+						if(setBasicDungeon(xx3,toY)) {
+							break;
+						}
+					}
+				}
+			}
+		}
+		var _g24 = 0;
+		var _g18 = this.width;
+		while(_g24 < _g18) {
+			var x2 = _g24++;
+			var _g49 = 0;
+			var _g39 = this.height;
+			while(_g49 < _g39) {
+				var y2 = _g49++;
+				if(!basicDungeon[x2][y2]) {
+					this.world.addElement(new worldElements_Wall(this.world,new common_Point(x2,y2)));
+				} else {
+					this.world.addElement(new worldElements_Floor(this.world,new common_Point(x2,y2)));
+				}
+			}
+		}
+		var roomFunction = new haxe_ds_ObjectMap();
+		var _g19 = 0;
+		while(_g19 < rooms.length) {
+			var room3 = rooms[_g19];
+			++_g19;
+			var v = dungeonGeneration_RoomType.None;
+			roomFunction.set(room3,v);
+		}
+		var playerRoom = common_ArrayExtensions.min(rooms,function(r) {
+			return r.x;
+		});
+		var v1 = dungeonGeneration_RoomType.PlayerStart;
+		roomFunction.set(playerRoom,v1);
+		var getUnusedRooms = function() {
+			return rooms.filter(function(r1) {
+				return roomFunction.h[r1.__id__] == dungeonGeneration_RoomType.None;
+			});
+		};
+		var getUnusedRoomsRandomOrder = function() {
+			var unused = getUnusedRooms();
+			unused.sort(function(_,_2) {
+				return common_Random.fromArray([-1,1]);
+			});
+			return unused;
+		};
+		var roomsStillToFill = getUnusedRoomsRandomOrder();
+		var _g25 = 0;
+		var _g110 = roomsStillToFill.length - 2;
+		while(_g25 < _g110) {
+			var i5 = _g25++;
+			var v2 = dungeonGeneration_RoomType.Monsters;
+			roomFunction.set(roomsStillToFill[i5],v2);
+		}
+		var room4 = roomFunction.keys();
+		while(room4.hasNext()) {
+			var room5 = room4.next();
+			var _g111 = roomFunction.h[room5.__id__];
+			switch(_g111[1]) {
+			case 0:
+				this.playerBody.set_position(new common_Point(room5.get_centerX(),room5.get_centerY()));
+				this.world.addElement(this.playerBody);
+				break;
+			case 1:
+				break;
+			case 2:
+				this.addMonsters(room5);
+				break;
+			case 3:
+				break;
+			case 4:
+				break;
+			}
+		}
+		return basicDungeon;
+	}
+	,anyEmptyPositionInRoom: function(room) {
+		var tries = 0;
+		while(tries < 1000) {
+			var pointX = common_Random.getInt(room.x,room.get_x2());
+			var pointY = common_Random.getInt(room.y,room.get_y2());
+			if(this.world.noBlockingElementsAt(new common_Point(pointX,pointY))) {
+				return new common_Point(pointX,pointY);
+			}
+		}
+		return null;
+	}
+	,addMonsters: function(room) {
+		var points = 2 + common_Random.getInt(this.floor);
+		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1}];
+		var _g = 0;
+		while(_g < 100) {
+			var i = _g++;
+			var creatureOption = common_Random.fromArray(creatureOptions);
+			if(points >= creatureOption.points) {
+				var position = this.anyEmptyPositionInRoom(room);
+				this.world.addElement(Type.createInstance(creatureOption.type,[this.world,position]));
+				points -= creatureOption.points;
+			}
+		}
+	}
+	,__class__: dungeonGeneration_DungeonGenerator
+};
+var dungeonGeneration_RoomPath = function(room1,room2) {
+	this.room1 = room1;
+	this.room2 = room2;
+};
+dungeonGeneration_RoomPath.__name__ = true;
+dungeonGeneration_RoomPath.prototype = {
+	__class__: dungeonGeneration_RoomPath
 };
 var haxe_StackItem = { __ename__ : true, __constructs__ : ["CFunction","Module","FilePos","Method","LocalFunction"] };
 haxe_StackItem.CFunction = ["CFunction",0];
@@ -2106,10 +2830,10 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 	,update: function() {
 		if(this.keyboard.anyConfirm() || this.keyboard.anyBack()) {
 			this.currentLine += 2;
-			this.drawCurrentLines(this.game.drawer);
 			if(this.currentLine >= this.currentLines.length - 2) {
 				this.game.focus(this.innerFocusable,false);
 			}
+			this.drawCurrentLines(this.game.drawer);
 		}
 	}
 	,drawCurrentLines: function(drawer) {
@@ -2179,7 +2903,8 @@ ui_Menu.prototype = $extend(Focusable.prototype,{
 			menuHeight += item.getHeight(this.drawer);
 		}
 		var val = selectedAt - ((22 - upperLimit) / 2 | 0);
-		var maxVal = menuHeight - 22 + upperLimit;
+		var val2 = menuHeight - 22 + upperLimit;
+		var maxVal = val2 > 0 ? val2 : 0;
 		this.scrollTop = val < 0 ? 0 : val > maxVal ? maxVal : val;
 		var yy = upperLimit - this.scrollTop;
 		var _g11 = 0;
@@ -2246,6 +2971,9 @@ worldElements_WorldElement.prototype = {
 	,get_isViewBlocking: function() {
 		return false;
 	}
+	,get_isStatic: function() {
+		return false;
+	}
 	,get_isEasierVisible: function() {
 		return false;
 	}
@@ -2282,11 +3010,65 @@ worldElements_WorldElement.prototype = {
 	,shouldRemove: function() {
 		return false;
 	}
-	,isInterestingForPlayer: function() {
+	,isInterestingForPlayer: function(controllingOnly) {
+		if(controllingOnly == null) {
+			controllingOnly = true;
+		}
 		return false;
 	}
 	,__class__: worldElements_WorldElement
 };
+var worldElements_Floor = function(world,position) {
+	worldElements_WorldElement.call(this,world,position);
+};
+worldElements_Floor.__name__ = true;
+worldElements_Floor.__super__ = worldElements_WorldElement;
+worldElements_Floor.prototype = $extend(worldElements_WorldElement.prototype,{
+	get_isBlocking: function() {
+		return false;
+	}
+	,get_isViewBlocking: function() {
+		return false;
+	}
+	,get_isStatic: function() {
+		return true;
+	}
+	,get_isEasierVisible: function() {
+		return true;
+	}
+	,init: function() {
+		this.color = 2105376;
+	}
+	,draw: function(drawer,notInView) {
+		drawer.setWorldWall(this.position.x,this.position.y,this.color,notInView);
+	}
+	,getInfo: function() {
+		return "";
+	}
+	,__class__: worldElements_Floor
+});
+var worldElements_PlayerBody = function(world,position) {
+	worldElements_WorldElement.call(this,world,position);
+};
+worldElements_PlayerBody.__name__ = true;
+worldElements_PlayerBody.__super__ = worldElements_WorldElement;
+worldElements_PlayerBody.prototype = $extend(worldElements_WorldElement.prototype,{
+	get_isBlocking: function() {
+		return true;
+	}
+	,get_isViewBlocking: function() {
+		return true;
+	}
+	,init: function() {
+		worldElements_WorldElement.prototype.init.call(this);
+		this.color = Drawer.colorToInt(Color.DarkLightBlue);
+		this.character = "@";
+	}
+	,getInfo: function() {
+		return "Your body!";
+	}
+	,__class__: worldElements_PlayerBody
+});
 var worldElements_Wall = function(world,position) {
 	worldElements_WorldElement.call(this,world,position);
 };
@@ -2297,6 +3079,9 @@ worldElements_Wall.prototype = $extend(worldElements_WorldElement.prototype,{
 		return true;
 	}
 	,get_isViewBlocking: function() {
+		return true;
+	}
+	,get_isStatic: function() {
 		return true;
 	}
 	,get_isEasierVisible: function() {
@@ -2312,6 +3097,8 @@ worldElements_Wall.prototype = $extend(worldElements_WorldElement.prototype,{
 });
 var worldElements_creatures_Creature = function(world,position) {
 	this.wanderTo = null;
+	this.aggressiveNearDistance = 2;
+	this.aggressiveToPlayerIfNear = false;
 	this.aggressiveToPlayer = false;
 	this.followTimeWithoutSee = 3;
 	this.lastSeenCreature = new haxe_ds_ObjectMap();
@@ -2343,6 +3130,7 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 	}
 	,init: function() {
 		this.movement = new worldElements_creatures_movement_BasicMovement();
+		this.originalMovement = this.movement;
 		this.stats = new worldElements_creatures_stats_CreatureStats(1,1);
 		this.basicAttack = new worldElements_creatures_actions_DirectionalAttack(this);
 		this.actions = [];
@@ -2453,22 +3241,29 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 	}
 	,shouldRemove: function() {
 		if(this.stats.hp <= 0) {
-			var tmp = this.world.info;
-			var str = "" + this.getNameToUse() + " " + this.getHaveOrHas() + " been defeated.";
-			tmp.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
+			if(this.world.player.ownBody == this && this.world.player.controllingBody != this) {
+				this.world.info.addInfo("While you were mind controlling, you have been defeated!".length == 0 ? "While you were mind controlling, you have been defeated!" : "While you were mind controlling, you have been defeated!".charAt(0).toUpperCase() + HxOverrides.substr("While you were mind controlling, you have been defeated!",1,null));
+			} else {
+				var tmp = this.world.info;
+				var str = "" + this.getNameToUse() + " " + this.getHaveOrHas() + " been defeated.";
+				tmp.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
+			}
 			return true;
 		}
 		return false;
 	}
-	,isInterestingForPlayer: function() {
-		if(this.world.player.ownBody != this) {
+	,isInterestingForPlayer: function(controllingOnly) {
+		if(controllingOnly == null) {
+			controllingOnly = true;
+		}
+		if(!(!controllingOnly && this.world.player.ownBody == this)) {
 			return this.world.player.controllingBody == this;
 		} else {
 			return true;
 		}
 	}
 	,getNameToUse: function() {
-		if(this.world.player.ownBody == this || this.world.player.controllingBody == this) {
+		if(this.world.player.controllingBody == this) {
 			return "you";
 		} else {
 			return "the " + this.creatureTypeName;
@@ -2481,7 +3276,7 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 		if(itself == null) {
 			itself = false;
 		}
-		if(this.world.player.ownBody == this || this.world.player.controllingBody == this) {
+		if(this.world.player.controllingBody == this) {
 			if(itself) {
 				return "yourself";
 			} else {
@@ -2493,15 +3288,18 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 			return "it";
 		}
 	}
+	,getAttackVerb: function() {
+		return this.creatureAttackVerb;
+	}
 	,getWereOrWas: function() {
-		if(this.world.player.ownBody == this || this.world.player.controllingBody == this) {
+		if(this.world.player.controllingBody == this) {
 			return "were";
 		} else {
 			return "was";
 		}
 	}
 	,getHaveOrHas: function() {
-		if(this.world.player.ownBody == this || this.world.player.controllingBody == this) {
+		if(this.world.player.controllingBody == this) {
 			return "have";
 		} else {
 			return "has";
@@ -2534,9 +3332,10 @@ worldElements_creatures_Goblin.prototype = $extend(worldElements_creatures_Creat
 		this.stats.speed = 100;
 		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_SplitOnByGoblin,function(c) {
 			return new worldElements_creatures_statusEffects_SplitOnByGoblin(c);
-		},"{subject} split on {object}, making all goblins aggressive to {shortObject}!",3,"Spit","Spit on an enemy next to you, making all goblins aggressive to it."));
+		},"{subject} spit on {object}, making all goblins aggressive to {shortObject}!",3,"Spit","Spit on an enemy next to you, making all goblins aggressive to it."));
 		this.creatureAttackVerb = "hit";
 		this.creatureFullAttackVerb = "hit";
+		this.aggressiveToPlayerIfNear = true;
 	}
 	,__class__: worldElements_creatures_Goblin
 });
@@ -2554,6 +3353,7 @@ worldElements_creatures_Human.prototype = $extend(worldElements_creatures_Creatu
 		this.stats.setMaxHP(10);
 		this.stats.setMaxAP(10);
 		this.stats.setAttack(3);
+		this.stats.setCritChance(0.05);
 		this.creatureAttackVerb = "hit";
 		this.creatureFullAttackVerb = "hit";
 	}
@@ -2590,6 +3390,11 @@ worldElements_creatures_actions_CreatureAction.prototype = {
 	get_actionPoints: function() {
 		return 0;
 	}
+	,canUse: function() {
+		return false;
+	}
+	,'use': function() {
+	}
 	,tryPossibleParameters: function(targets) {
 		return false;
 	}
@@ -2615,8 +3420,11 @@ worldElements_creatures_actions_DirectionAction.prototype = $extend(worldElement
 		});
 	}
 	,canUseOnCreatureFrom: function(creatures) {
+		return this.canUseOnAnyCreatureFromElements(this.elementsInDirection(),creatures);
+	}
+	,canUseOnAnyCreatureFromElements: function(elements,creatures) {
 		var _gthis = this;
-		return common_ArrayExtensions.any(this.elementsInDirection(),function(elem) {
+		return common_ArrayExtensions.any(elements,function(elem) {
 			if(js_Boot.__instanceof(elem,worldElements_creatures_Creature) && common_ArrayExtensions.contains(creatures,elem)) {
 				return _gthis.canUseOnElement(elem);
 			} else {
@@ -2691,7 +3499,11 @@ worldElements_creatures_actions_AfflictStatusEffect.prototype = $extend(worldEle
 	}
 	,useOnElement: function(elementHere) {
 		var creatureHere = elementHere;
-		creatureHere.addStatusEffect(this.makeStatusEffect(creatureHere));
+		var se = this.makeStatusEffect(creatureHere);
+		creatureHere.addStatusEffect(se);
+		if(se.negative) {
+			worldElements_creatures_actions_AttackCalculator.attackStandardResults(this.creature,creatureHere);
+		}
 		if(this.creature.isInterestingForPlayer() || creatureHere.isInterestingForPlayer()) {
 			var tmp = this.creature.world.info;
 			var str = StringTools.replace(StringTools.replace(StringTools.replace(this.onAfflictText,"{subject}",this.creature.getNameToUse()),"{object}",creatureHere.getNameToUse()),"{shortObject}",creatureHere.getReferenceToUse(false,true));
@@ -2700,21 +3512,38 @@ worldElements_creatures_actions_AfflictStatusEffect.prototype = $extend(worldEle
 	}
 	,__class__: worldElements_creatures_actions_AfflictStatusEffect
 });
-var worldElements_creatures_actions_AttackResult = { __ename__ : true, __constructs__ : ["Damage","Block"] };
+var worldElements_creatures_actions_AttackResult = { __ename__ : true, __constructs__ : ["Damage","Critical","Block"] };
 worldElements_creatures_actions_AttackResult.Damage = function(damage) { var $x = ["Damage",0,damage]; $x.__enum__ = worldElements_creatures_actions_AttackResult; $x.toString = $estr; return $x; };
-worldElements_creatures_actions_AttackResult.Block = ["Block",1];
+worldElements_creatures_actions_AttackResult.Critical = function(damage) { var $x = ["Critical",1,damage]; $x.__enum__ = worldElements_creatures_actions_AttackResult; $x.toString = $estr; return $x; };
+worldElements_creatures_actions_AttackResult.Block = ["Block",2];
 worldElements_creatures_actions_AttackResult.Block.toString = $estr;
 worldElements_creatures_actions_AttackResult.Block.__enum__ = worldElements_creatures_actions_AttackResult;
 var worldElements_creatures_actions_AttackCalculator = function() { };
 worldElements_creatures_actions_AttackCalculator.__name__ = true;
 worldElements_creatures_actions_AttackCalculator.basicAttack = function(attackingCreature,attackedCreature) {
 	var attackPart = attackingCreature.stats.attack;
+	attackPart = common_Random.getInt(Math.ceil(attackPart / 2),attackPart + 1);
 	var defencePart = attackedCreature.stats.defence;
+	var isCritical = false;
+	if(common_Random.getFloat() < attackingCreature.stats.critChance) {
+		isCritical = true;
+		attackPart += Math.ceil(attackingCreature.stats.attack * 0.67);
+		var val1 = attackPart - 1;
+		if(defencePart < val1) {
+			defencePart = defencePart;
+		} else {
+			defencePart = val1;
+		}
+	}
 	var damage = attackPart - defencePart;
 	attackedCreature.stats.hp -= damage;
 	var result;
 	if(damage > 0) {
-		result = worldElements_creatures_actions_AttackResult.Damage(damage);
+		if(isCritical) {
+			result = worldElements_creatures_actions_AttackResult.Critical(damage);
+		} else {
+			result = worldElements_creatures_actions_AttackResult.Damage(damage);
+		}
 	} else if(defencePart > 0) {
 		result = worldElements_creatures_actions_AttackResult.Block;
 	} else {
@@ -2728,6 +3557,107 @@ worldElements_creatures_actions_AttackCalculator.attackStandardResults = functio
 		attackedCreature.attackedBy.push(attackingCreature);
 	}
 };
+var worldElements_creatures_actions_Dash = function(creature) {
+	worldElements_creatures_actions_DirectionAction.call(this,creature);
+	this.abilityName = "Dash";
+	this.abilityDescription = "Move up to three spaces in one direction. If you hit an enemy, attack it.";
+};
+worldElements_creatures_actions_Dash.__name__ = true;
+worldElements_creatures_actions_Dash.__super__ = worldElements_creatures_actions_DirectionAction;
+worldElements_creatures_actions_Dash.prototype = $extend(worldElements_creatures_actions_DirectionAction.prototype,{
+	get_actionPoints: function() {
+		return 2;
+	}
+	,canUse: function() {
+		return this.creature.world.noBlockingElementsAt(this.creature.world.positionInDirection(this.creature.position,this.direction),false);
+	}
+	,canUseOnElement: function(elementHere) {
+		return true;
+	}
+	,canUseOnCreatureFrom: function(creatures) {
+		if(!this.canUse()) {
+			return false;
+		}
+		var pos = this.creature.position;
+		var _g = 0;
+		while(_g < 4) {
+			var i = _g++;
+			pos = this.creature.world.positionInDirection(pos,this.direction);
+			if(this.canUseOnAnyCreatureFromElements(this.creature.world.elementsAtPosition(pos),creatures)) {
+				return true;
+			}
+			if(!this.creature.world.noBlockingElementsAt(pos,false)) {
+				break;
+			}
+		}
+		return false;
+	}
+	,'use': function() {
+		var pos = this.creature.position;
+		var moveToPos = this.creature.position;
+		var attacked = false;
+		var _g = 0;
+		while(_g < 4) {
+			var i = _g++;
+			pos = this.creature.world.positionInDirection(pos,this.direction);
+			var elems = this.creature.world.elementsAtPosition(pos);
+			var _g1 = 0;
+			while(_g1 < elems.length) {
+				var elem = elems[_g1];
+				++_g1;
+				if(js_Boot.__instanceof(elem,worldElements_creatures_Creature)) {
+					var creatureHere = elem;
+					var result = worldElements_creatures_actions_AttackCalculator.basicAttack(this.creature,creatureHere);
+					if(this.creature.isInterestingForPlayer() || creatureHere.isInterestingForPlayer()) {
+						var text;
+						switch(result[1]) {
+						case 0:
+							var damage = result[2];
+							var str = "" + this.creature.getNameToUse() + " dashed into " + creatureHere.getNameToUse() + " for " + damage + " damage.";
+							if(str.length == 0) {
+								text = str;
+							} else {
+								text = str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null);
+							}
+							break;
+						case 1:
+							var damage1 = result[2];
+							var str1 = "" + this.creature.getNameToUse() + " dashed into " + creatureHere.getNameToUse() + ". It's a critical hit for " + damage1 + " damage!";
+							if(str1.length == 0) {
+								text = str1;
+							} else {
+								text = str1.charAt(0).toUpperCase() + HxOverrides.substr(str1,1,null);
+							}
+							break;
+						case 2:
+							var str2 = "" + this.creature.getNameToUse() + " tried to dash into " + creatureHere.getNameToUse() + ", but " + creatureHere.getReferenceToUse() + " defended " + creatureHere.getReferenceToUse(true) + ".";
+							if(str2.length == 0) {
+								text = str2;
+							} else {
+								text = str2.charAt(0).toUpperCase() + HxOverrides.substr(str2,1,null);
+							}
+							break;
+						}
+						this.creature.world.info.addInfo(text);
+					}
+					attacked = true;
+					break;
+				}
+			}
+			if(attacked) {
+				break;
+			}
+			if(!this.creature.world.noBlockingElementsAt(pos,false)) {
+				break;
+			}
+			if(i != 3) {
+				moveToPos = pos;
+			}
+		}
+		this.creature.set_position(moveToPos);
+	}
+	,__class__: worldElements_creatures_actions_Dash
+});
 var worldElements_creatures_actions_DirectionalAttack = function(creature) {
 	worldElements_creatures_actions_DirectionAction.call(this,creature);
 };
@@ -2745,7 +3675,7 @@ worldElements_creatures_actions_DirectionalAttack.prototype = $extend(worldEleme
 			switch(result[1]) {
 			case 0:
 				var damage = result[2];
-				var str = "" + this.creature.getNameToUse() + " " + this.creature.creatureAttackVerb + " " + creatureHere.getNameToUse() + " for " + damage + " damage.";
+				var str = "" + this.creature.getNameToUse() + " " + this.creature.getAttackVerb() + " " + creatureHere.getNameToUse() + " for " + damage + " damage.";
 				if(str.length == 0) {
 					text = str;
 				} else {
@@ -2753,11 +3683,20 @@ worldElements_creatures_actions_DirectionalAttack.prototype = $extend(worldEleme
 				}
 				break;
 			case 1:
-				var str1 = "" + this.creature.getNameToUse() + " tried to " + this.creature.creatureFullAttackVerb + " " + creatureHere.getNameToUse() + ", but " + creatureHere.getReferenceToUse() + " defended " + creatureHere.getReferenceToUse(true) + ".";
+				var damage1 = result[2];
+				var str1 = "" + this.creature.getNameToUse() + " " + this.creature.getAttackVerb() + " " + creatureHere.getNameToUse() + ". It's a critical hit for " + damage1 + " damage!";
 				if(str1.length == 0) {
 					text = str1;
 				} else {
 					text = str1.charAt(0).toUpperCase() + HxOverrides.substr(str1,1,null);
+				}
+				break;
+			case 2:
+				var str2 = "" + this.creature.getNameToUse() + " tried to " + this.creature.creatureFullAttackVerb + " " + creatureHere.getNameToUse() + ", but " + creatureHere.getReferenceToUse() + " defended " + creatureHere.getReferenceToUse(true) + ".";
+				if(str2.length == 0) {
+					text = str2;
+				} else {
+					text = str2.charAt(0).toUpperCase() + HxOverrides.substr(str2,1,null);
 				}
 				break;
 			}
@@ -2765,6 +3704,48 @@ worldElements_creatures_actions_DirectionalAttack.prototype = $extend(worldEleme
 		}
 	}
 	,__class__: worldElements_creatures_actions_DirectionalAttack
+});
+var worldElements_creatures_actions_StopTakeOver = function(creature) {
+	worldElements_creatures_actions_CreatureAction.call(this,creature);
+	this.abilityName = "Stop Mind Control";
+	this.abilityDescription = "Stop mind controlling this creature.";
+};
+worldElements_creatures_actions_StopTakeOver.__name__ = true;
+worldElements_creatures_actions_StopTakeOver.__super__ = worldElements_creatures_actions_CreatureAction;
+worldElements_creatures_actions_StopTakeOver.prototype = $extend(worldElements_creatures_actions_CreatureAction.prototype,{
+	get_actionPoints: function() {
+		return 0;
+	}
+	,canUse: function() {
+		return true;
+	}
+	,'use': function() {
+		this.creature.world.info.addInfo("You stopped mind controlling and found yourself back in your own body.");
+		this.creature.world.player.stopTakeover();
+	}
+	,__class__: worldElements_creatures_actions_StopTakeOver
+});
+var worldElements_creatures_actions_TakeOverEnemy = function(creature) {
+	worldElements_creatures_actions_DirectionAction.call(this,creature);
+	this.abilityName = "Mind Control";
+	this.abilityDescription = "Take over an enemy next to you. Make sure you're at least somewhat safe, as you won't be able to move your own body until you end the mind control.";
+};
+worldElements_creatures_actions_TakeOverEnemy.__name__ = true;
+worldElements_creatures_actions_TakeOverEnemy.__super__ = worldElements_creatures_actions_DirectionAction;
+worldElements_creatures_actions_TakeOverEnemy.prototype = $extend(worldElements_creatures_actions_DirectionAction.prototype,{
+	get_actionPoints: function() {
+		return 5;
+	}
+	,canUseOnElement: function(elementHere) {
+		return js_Boot.__instanceof(elementHere,worldElements_creatures_Creature);
+	}
+	,useOnElement: function(elementHere) {
+		var creatureHere = elementHere;
+		this.creature.world.info.addInfo("You started mind controlling " + creatureHere.getNameToUse() + ".");
+		this.creature.world.player.controllingBody = creatureHere;
+		this.creature.world.player.afterTakeover();
+	}
+	,__class__: worldElements_creatures_actions_TakeOverEnemy
 });
 var worldElements_creatures_movement_Movement = function() { };
 worldElements_creatures_movement_Movement.__name__ = true;
@@ -2821,7 +3802,25 @@ worldElements_creatures_movement_BasicMovement.__super__ = worldElements_creatur
 worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements_creatures_movement_Movement.prototype,{
 	move: function(world,creature) {
 		var aggressiveToCreatures = creature.attackedBy.slice();
-		if(creature.aggressiveToPlayer && !common_ArrayExtensions.contains(aggressiveToCreatures,world.player.ownBody)) {
+		var tmp;
+		var tmp1;
+		if(!creature.aggressiveToPlayer) {
+			if(creature.aggressiveToPlayerIfNear) {
+				var _this = creature.position;
+				var otherPoint = world.player.ownBody.position;
+				tmp1 = Math.abs(_this.x - otherPoint.x) + Math.abs(_this.y - otherPoint.y) <= creature.aggressiveNearDistance;
+			} else {
+				tmp1 = false;
+			}
+		} else {
+			tmp1 = true;
+		}
+		if(tmp1) {
+			tmp = !common_ArrayExtensions.contains(aggressiveToCreatures,world.player.ownBody);
+		} else {
+			tmp = false;
+		}
+		if(tmp) {
 			aggressiveToCreatures.push(world.player.ownBody);
 		}
 		var _g = 0;
@@ -2829,6 +3828,9 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 		while(_g < _g1.length) {
 			var worldCreature = _g1[_g];
 			++_g;
+			if(common_ArrayExtensions.contains(aggressiveToCreatures,worldCreature)) {
+				continue;
+			}
 			if(worldCreature.makesCreatureAggressive(creature)) {
 				aggressiveToCreatures.push(worldCreature);
 			}
@@ -2868,7 +3870,7 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 		} else {
 			if(creature.wanderTo == null) {
 				var wanderToOptions = world.pathfinder.find(creature.position,function(p) {
-					return world.noBlockingElementsAt(p);
+					return world.noBlockingElementsAt(p,false);
 				},true);
 				if(wanderToOptions.length > 0) {
 					creature.wanderTo = common_Random.fromArray(wanderToOptions).point;
@@ -2876,9 +3878,9 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 			}
 			if(creature.wanderTo != null) {
 				var wanderInfo = world.pathfinder.find(creature.position,function(p1) {
-					var otherPoint = creature.wanderTo;
-					if(p1.x == otherPoint.x) {
-						return p1.y == otherPoint.y;
+					var otherPoint1 = creature.wanderTo;
+					if(p1.x == otherPoint1.x && p1.y == otherPoint1.y) {
+						return world.noBlockingElementsAt(p1,false);
 					} else {
 						return false;
 					}
@@ -2941,6 +3943,7 @@ var worldElements_creatures_stats_CreatureStats = function(hp,ap,attack,defence)
 	this.hpRegen = 10;
 	this.timeToNextAPRegen = 10;
 	this.timeToNextHPRegen = 10;
+	this.critChance = 0;
 };
 worldElements_creatures_stats_CreatureStats.__name__ = true;
 worldElements_creatures_stats_CreatureStats.prototype = {
@@ -2970,6 +3973,9 @@ worldElements_creatures_stats_CreatureStats.prototype = {
 		var val2 = this.maxAP;
 		this.ap = val2 < val1 ? val2 : val1;
 	}
+	,setCritChance: function(chance) {
+		this.critChance = chance;
+	}
 	,__class__: worldElements_creatures_stats_CreatureStats
 };
 var worldElements_creatures_statusModifiers_StatusModifier = function(creature) {
@@ -2988,6 +3994,7 @@ worldElements_creatures_statusModifiers_StatusModifier.prototype = {
 	,__class__: worldElements_creatures_statusModifiers_StatusModifier
 };
 var worldElements_creatures_statusEffects_StatusEffect = function(creature) {
+	this.negative = true;
 	this.ended = false;
 	this.name = "";
 	worldElements_creatures_statusModifiers_StatusModifier.call(this,creature);
@@ -3064,6 +4071,7 @@ worldElements_creatures_statusEffects_SplitOnByGoblin.prototype = $extend(worldE
 	}
 	,__class__: worldElements_creatures_statusEffects_SplitOnByGoblin
 });
+function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }
 String.prototype.__class__ = String;

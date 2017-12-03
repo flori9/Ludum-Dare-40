@@ -14,6 +14,7 @@ enum Color {
     Yellow;
     DarkGray;
     LightGray;
+    DarkLightBlue;
 }
 
 class Drawer {
@@ -68,6 +69,17 @@ class Drawer {
         wallGraphics.clear();
     }
     
+    public function destroy() {
+        for (i in 0...height)
+        {
+            for (j in 0...width)
+            {
+                stage.removeChild(bitmaps[i][j]);
+            }
+        }
+        stage.removeChild(wallGraphics);
+    }
+
     public function clearLines(start:Int, amount:Int) {
         for (i in start...start + amount) {
             for (j in 0...width) {
@@ -217,6 +229,7 @@ class Drawer {
             case Red: 0xff0000;
             case Yellow: 0xffff00;
             case LightBlue: 0x42c5f4;
+            case DarkLightBlue: 0x217082;
             case Purple: 0x8a3fc6;
             case DarkGray: 0x404040;
             case LightGray: 0xb0b0b0;

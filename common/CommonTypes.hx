@@ -16,22 +16,26 @@ class Rectangle {
     public var y2(get, never):Int;
     function get_y2() return y + height;
     
+    public var centerX(get, never):Int;
+    function get_centerX() return x + Math.div(width, 2);
+    public var centerY(get, never):Int;
+    function get_centerY() return y + Math.div(height, 2);
+
     public inline function new(x, y, width, height) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
     }
-    
-    public function intersects(other:Rectangle) {
-        return (Math.between(x, other.x, other.x + other.width) && Math.between(y, other.y, other.y + height))
-            || (Math.between(other.x, x, x + width) && Math.between(other.y, y, y + height));
+
+    public function overlaps(other:Rectangle) {
+        return x < other.x2 && x2 > other.x && y < other.y2 && y2 > other.y;
     }
     
     public function contains(point:Point) {
         return Math.between(point.x, x, x + width) && Math.between(point.y, y, y + height);
     }
-    
+
     public inline function toPixiRect() {
         return new PixiRect(x, y, width, height);
     }
@@ -76,6 +80,9 @@ class Point {
 
     public inline function equals(otherPoint:Point)
         return x == otherPoint.x && y == otherPoint.y;
+
+    public inline function manhattanDistance(otherPoint:Point)
+        return Math.abs(x - otherPoint.x) + Math.abs(y - otherPoint.y);
 }
 
 class FPoint {

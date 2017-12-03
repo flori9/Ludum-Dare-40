@@ -9,7 +9,7 @@ class Menu extends Focusable {
     var innerFocusable:Focusable;
     var title:String;
 
-    var info:InfoDisplay;
+    public var info:InfoDisplay;
     var extraCloseKey:Int;
     var selectedItem = 0;
     var scrollTop = 0;
@@ -73,8 +73,7 @@ class Menu extends Focusable {
             }
             menuHeight += item.getHeight(drawer);
         }
-        scrollTop = Math.iclamp(selectedAt - Math.div(maxDrawY - upperLimit, 2), 0, menuHeight - maxDrawY + upperLimit);
-
+        scrollTop = Math.iclamp(selectedAt - Math.div(maxDrawY - upperLimit, 2), 0, Math.imax(0, menuHeight - maxDrawY + upperLimit));
         var yy = upperLimit - scrollTop;
 
         for (i in 0...items.length) {

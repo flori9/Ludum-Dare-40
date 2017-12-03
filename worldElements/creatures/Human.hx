@@ -10,6 +10,7 @@ class Human extends Creature {
         stats.setMaxHP(10);
         stats.setMaxAP(10);
         stats.setAttack(3);
+        stats.setCritChance(0.05);
 
         creatureAttackVerb = "hit";
         creatureFullAttackVerb = "hit";

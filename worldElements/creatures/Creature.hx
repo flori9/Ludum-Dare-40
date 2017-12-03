@@ -7,6 +7,7 @@ import worldElements.creatures.statusModifiers.StatusModifier;
 
 class Creature extends WorldElement {
     public var movement:Movement;
+    public var originalMovement:Movement;
     override function get_isBlocking() return true;
     public var hasMoved:Bool = false;
     public var stats:CreatureStats;
@@ -45,10 +46,19 @@ class Creature extends WorldElement {
      *  Whether we're always aggressive towards the player
      */
     public var aggressiveToPlayer = false;
+    /**
+     *  Whether we're aggressive to the player if they come near
+     */
+    public var aggressiveToPlayerIfNear = false;
+    /**
+     *  Manhattan distance for aggression
+     */
+    public var aggressiveNearDistance = 2;
     public var wanderTo:Point = null;
 
     public override function init() {
         movement = new BasicMovement();
+        originalMovement = movement;
         stats = new CreatureStats(1, 1);
         basicAttack = new DirectionalAttack(this);
         actions = [];
@@ -156,21 +166,24 @@ class Creature extends WorldElement {
     public override function shouldRemove() {
         if (stats.hp <= 0) {
             //Yeah, this should be removed, and also show a message
-            world.info.addInfo('${getNameToUse()} ${getHaveOrHas()} been defeated.'.firstToUpper());
+            if (world.player.ownBody == this && world.player.controllingBody != this)
+                world.info.addInfo('While you were mind controlling, you have been defeated!'.firstToUpper());
+            else
+                world.info.addInfo('${getNameToUse()} ${getHaveOrHas()} been defeated.'.firstToUpper());
             return true;
         }
         return false;
     }
 
-    public override function isInterestingForPlayer() {
-        return world.player.ownBody == this || world.player.controllingBody == this;
+    public override function isInterestingForPlayer(controllingOnly = true) {
+        return (!controllingOnly && world.player.ownBody == this) || world.player.controllingBody == this;
     }
 
     /**
      *  Get a full name, or you.
      */
     public function getNameToUse() {
-        if (world.player.ownBody == this || world.player.controllingBody == this)
+        if (/*world.player.ownBody == this || */world.player.controllingBody == this)
             return "you";
         else
             return 'the $creatureTypeName';
@@ -181,22 +194,26 @@ class Creature extends WorldElement {
      *  @param itself - 
      */
     public function getReferenceToUse(itself:Bool = false, object:Bool = false) {
-        if (world.player.ownBody == this || world.player.controllingBody == this)
+        if (/*world.player.ownBody == this || */world.player.controllingBody == this)
             return itself ? "yourself" : "you";
         else
             return itself ? "itself" : "it";
         //he/himself/him
     }
 
+    public function getAttackVerb() {
+        return /*world.player.controllingBody == this ? creatureFullAttackVerb : */creatureAttackVerb;
+    }
+
     public function getWereOrWas() {
-        if (world.player.ownBody == this || world.player.controllingBody == this)
+        if (/*world.player.ownBody == this || */world.player.controllingBody == this)
             return "were";
         else
             return "was";
     }
 
     public function getHaveOrHas() {
-        if (world.player.ownBody == this || world.player.controllingBody == this)
+        if (/*world.player.ownBody == this || */world.player.controllingBody == this)
             return "have";
         else
             return "has";

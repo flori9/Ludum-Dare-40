@@ -13,7 +13,11 @@ class DirectionAction extends CreatureAction {
     }
 
     public override function canUseOnCreatureFrom(creatures:Array<Creature>) {
-        return elementsInDirection().any(function(elem) return Std.is(elem, Creature) && creatures.contains(cast elem) && canUseOnElement(elem));
+        return canUseOnAnyCreatureFromElements(elementsInDirection(), creatures);
+    }
+
+    function canUseOnAnyCreatureFromElements(elements:Array<WorldElement>, creatures:Array<Creature>) {
+        return elements.any(function(elem) return Std.is(elem, Creature) && creatures.contains(cast elem) && canUseOnElement(elem));
     }
 
     public override function tryPossibleParameters(targets:Array<Creature>):Bool {
@@ -29,7 +33,7 @@ class DirectionAction extends CreatureAction {
         return false;
     }
 
-    public function canUseOnElement(elementHere:WorldElement) {
+    function canUseOnElement(elementHere:WorldElement) {
         return false;
     }
 

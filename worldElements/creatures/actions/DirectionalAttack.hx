@@ -10,7 +10,8 @@ class DirectionalAttack extends DirectionAction {
         var result = AttackCalculator.basicAttack(creature, creatureHere);
         if (creature.isInterestingForPlayer() || elementHere.isInterestingForPlayer()) {
             var text = switch (result) {
-                case Damage(damage): '${creature.getNameToUse()} ${creature.creatureAttackVerb} ${creatureHere.getNameToUse()} for $damage damage.'.firstToUpper();
+                case Critical(damage): '${creature.getNameToUse()} ${creature.getAttackVerb()} ${creatureHere.getNameToUse()}. It\'s a critical hit for $damage damage!'.firstToUpper();
+                case Damage(damage): '${creature.getNameToUse()} ${creature.getAttackVerb()} ${creatureHere.getNameToUse()} for $damage damage.'.firstToUpper();
                 case Block: '${creature.getNameToUse()} tried to ${creature.creatureFullAttackVerb} ${creatureHere.getNameToUse()}, but ${creatureHere.getReferenceToUse()} defended ${creatureHere.getReferenceToUse(true)}.'.firstToUpper();
             }
             creature.world.info.addInfo(text);

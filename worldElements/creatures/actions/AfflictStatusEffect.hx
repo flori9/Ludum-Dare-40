@@ -30,7 +30,10 @@ class AfflictStatusEffect extends DirectionAction {
 
     public override function useOnElement(elementHere:WorldElement) {
         var creatureHere:Creature = cast elementHere;
-        creatureHere.addStatusEffect(makeStatusEffect(creatureHere));
+        var se = makeStatusEffect(creatureHere);
+        creatureHere.addStatusEffect(se);
+        if (se.negative)
+            AttackCalculator.attackStandardResults(creature, creatureHere);
         if (creature.isInterestingForPlayer() || creatureHere.isInterestingForPlayer()) {
             creature.world.info.addInfo(onAfflictText.replace("{subject}", creature.getNameToUse()).replace("{object}", creatureHere.getNameToUse())
                 .replace("{shortObject}", creatureHere.getReferenceToUse(false, true)).firstToUpper());

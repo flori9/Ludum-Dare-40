@@ -85,7 +85,7 @@ class WorldElement {
     /**
      *  Whether the player wants to know everything that happens to this.
      */
-    public function isInterestingForPlayer() {
+    public function isInterestingForPlayer(controllingOnly = true) {
         return false;
     }
 }

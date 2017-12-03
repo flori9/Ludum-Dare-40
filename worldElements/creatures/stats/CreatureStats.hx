@@ -10,6 +10,7 @@ class CreatureStats {
     public var attack:Int;
     public var defence:Int;
     public var speed:Int;
+    public var critChance:Float;
 
     public var apRegen:Int; //Turns
     public var hpRegen:Int; //Turns
@@ -33,6 +34,7 @@ class CreatureStats {
         hpRegen = 10;
         timeToNextAPRegen = 10;
         timeToNextHPRegen = 10;
+        critChance = 0;
     }
 
     public function getInfo():String {
@@ -71,5 +73,9 @@ class CreatureStats {
 
     public function gainAP(gain) {
         ap = Math.imin(ap + gain, maxAP);
+    }
+
+    public function setCritChance(chance) {
+        critChance = chance;
     }
 }

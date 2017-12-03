@@ -12,7 +12,7 @@ class Game {
     public var drawer:Drawer;
     public var player:Player;
     var world:World;
-    var info:ui.InfoDisplay;
+    public var info:ui.InfoDisplay;
 
     var focusedElement:Focusable;
 
@@ -31,8 +31,15 @@ class Game {
 
         info = new ui.InfoDisplay(keyboard, world, this, player);
         world.info = info;
+        
+        world.generateLevel();
 
         drawWorld();
+    }
+
+    public function restartGame() {
+        drawer.destroy();
+        application.startGame();
     }
 	
 	public function update(timeMod:Float) {

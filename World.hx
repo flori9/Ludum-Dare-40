@@ -58,6 +58,10 @@ class World {
         elements.push(new worldElements.creatures.Goblin(this, new Point(11, 4)));
     }
 
+    public function generateLevel() {
+        new dungeonGeneration.DungeonGenerator(this);
+    }
+
     public function addElement(element:WorldElement) {
         elements.push(element);
     }
@@ -120,6 +124,9 @@ class World {
 
         removeElementsWhereNeeded();
 
+        //Player afterStep
+        player.afterStep();
+
         draw();
     }
 
@@ -148,13 +155,16 @@ class World {
 
     public function draw() {
         drawer.setWorldView(screenX, screenY, viewX, viewY, displayWidth, displayHeight);
+
+        var visibleElements:Array<WorldElement> = [];
+        var elemAt = [for (i in 0...width)[for (j in 0...height) false]];
+
         for (element in elements) {
             element.isCurrentlyVisible = false;
 
             if (pathfinder.isVisible(player.controllingBody.position, element.position, true)) {
-                element.draw(drawer, false);
-                element.seenByPlayer = true;
-                element.isCurrentlyVisible = true;
+                visibleElements.push(element);
+                elemAt[element.position.x][element.position.y] = true;
             } else {
                 if (element.isEasierVisible) {
                     var nowSeen = false;
@@ -167,16 +177,42 @@ class World {
 
                     if (anyIndirectlyVisible) {
                         nowSeen = true;
-                        element.isCurrentlyVisible = true;
-                        element.draw(drawer, false);
-                        element.seenByPlayer = true;
+                        visibleElements.push(element);
+                        elemAt[element.position.x][element.position.y] = true;
                     }
 
-                    if (! nowSeen && element.seenByPlayer) {
+                    if (! nowSeen && element.isStatic && element.seenByPlayer) {
                         element.draw(drawer, true);
                         element.isCurrentlyVisible = true;
                     }
-                }
+                } else if (element.isStatic && element.seenByPlayer)
+                    element.draw(drawer, true);
+            }
+        }
+
+        var shouldBeVisible = [for (i in 0...width)[for (j in 0...height) false]];
+        function floodFill(x, y) {
+            shouldBeVisible[x][y] = true;
+            var xx = x - 1, yy = y;
+            if (isPositionInWorld(new Point(xx, yy)) && (!shouldBeVisible[xx][yy] && elemAt[xx][yy]))
+                floodFill(xx, yy);
+            var xx = x + 1, yy = y;
+            if (isPositionInWorld(new Point(xx, yy)) && (!shouldBeVisible[xx][yy] && elemAt[xx][yy]))
+                floodFill(xx, yy);
+            var xx = x, yy = y - 1;
+            if (isPositionInWorld(new Point(xx, yy)) && (!shouldBeVisible[xx][yy] && elemAt[xx][yy]))
+                floodFill(xx, yy);
+            var xx = x, yy = y + 1;
+            if (isPositionInWorld(new Point(xx, yy)) && (!shouldBeVisible[xx][yy] && elemAt[xx][yy]))
+                floodFill(xx, yy);
+        }
+        floodFill(player.controllingBody.position.x, player.controllingBody.position.y);
+
+        for (element in visibleElements) {
+            if (shouldBeVisible[element.position.x][element.position.y]) {
+                element.isCurrentlyVisible = true;
+                element.draw(drawer, false);
+                element.seenByPlayer = true;
             }
         }
 
@@ -273,9 +309,12 @@ class World {
         var help = "";
         for (element in elementsAtPosition(position)) {
             if (element.isCurrentlyVisible) {
-                if (help != "") help += "\n";
+                var thisInfo = element.getInfo();
+                if (thisInfo != "") {
+                    if (help != "") help += "\n";
 
-                help += element.getInfo();
+                    help += thisInfo;
+                }
             }
         }
         

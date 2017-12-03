@@ -54,10 +54,12 @@ class InfoDisplay extends Focusable {
     public override function update() {
         if (keyboard.anyConfirm() || keyboard.anyBack()) {
             currentLine += 2;
-            drawCurrentLines(game.drawer);
 
-            if (currentLine >= currentLines.length - 2)
+            if (currentLine >= currentLines.length - 2) {
                 game.focus(innerFocusable, false);
+            }
+
+            drawCurrentLines(game.drawer);
         }
     }
 

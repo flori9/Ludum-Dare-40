@@ -45,7 +45,7 @@ class Main extends Application {
 		loader = new GameLoader(function() {
             trace("loaded");
 			loader = null;
-			game = new Game(this, stage, gameRect);
+			startGame();
 		});
 		
 		//Prevent right clicking from showing a context menu
@@ -55,6 +55,10 @@ class Main extends Application {
 		});
 	}
 	
+	public function startGame() {
+		game = new Game(this, stage, gameRect);
+	}
+
 	/**
 	  Init some game configuration
 	 */

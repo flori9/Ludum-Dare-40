@@ -5,14 +5,25 @@ class BasicMovement extends Movement {
 
     }
 
-    public override function move(world:World, creature:Creature) {
+    public function getAggresiveTo(world:World, creature:Creature) {
         var aggressiveToCreatures = creature.attackedBy.copy();
-        if (creature.aggressiveToPlayer && !aggressiveToCreatures.contains(world.player.ownBody))
+        if ((creature.aggressiveToPlayer || (creature.aggressiveToPlayerIfNear
+                && creature.position.manhattanDistance(world.player.ownBody.position) <= creature.aggressiveNearDistance))
+                && !aggressiveToCreatures.contains(world.player.ownBody))
             aggressiveToCreatures.push(world.player.ownBody);
         for (worldCreature in world.creatures) {
+            if (aggressiveToCreatures.contains(worldCreature))
+                continue;
+
             if (worldCreature.makesCreatureAggressive(creature))
                 aggressiveToCreatures.push(worldCreature);
         }
+
+        return aggressiveToCreatures;
+    }
+
+    public override function move(world:World, creature:Creature) {
+        var aggressiveToCreatures = getAggresiveTo(world, creature);
 
         function isAggressiveToThis(elem)
             return Std.is(elem, Creature) && aggressiveToCreatures.contains(cast elem);
@@ -43,13 +54,14 @@ class BasicMovement extends Movement {
                 moveInDirection(world, creature, nearestTargetInfo.inDirection);
         } else {
             if (creature.wanderTo == null) {
-                var wanderToOptions = world.pathfinder.find(creature.position, function(p) return world.noBlockingElementsAt(p), true);
+                var wanderToOptions = world.pathfinder.find(creature.position, function(p) return world.noBlockingElementsAt(p, false), true);
                 if (wanderToOptions.length > 0)
                     creature.wanderTo = common.Random.fromArray(wanderToOptions).point;
             }
             
             if (creature.wanderTo != null) {
-                var wanderInfo = world.pathfinder.find(creature.position, function(p) return p.equals(creature.wanderTo), false);
+                var wanderInfo = world.pathfinder.find(creature.position, function(p)
+                    return p.equals(creature.wanderTo) && world.noBlockingElementsAt(p, false), false);
                 if (wanderInfo.length > 0) {
                     moveInDirection(world, creature, wanderInfo[0].inDirection);
                     if (creature.position == creature.wanderTo)
@@ -59,6 +71,12 @@ class BasicMovement extends Movement {
         }
     }
 
+    /**
+     *  Called can, but actually does the ability too. Oops.
+     *  @param creature - 
+     *  @param aggressiveToCreatures - 
+     *  @return Bool
+     */
     public function canUseAnyAbility(creature:Creature, aggressiveToCreatures:Array<Creature>):Bool {
         //getPriority
         var sortedActions = creature.actions.copy();
