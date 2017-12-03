@@ -3,6 +3,7 @@ class Player extends Focusable {
     public var controllingBody:worldElements.creatures.Creature;
 
     var statusEffectsMenuKey:Int;
+    var waitKey:Int;
 
     override function get_showsWorld() return true;
 
@@ -10,10 +11,12 @@ class Player extends Focusable {
         super(keyboard, world, game);
 
         ownBody = new worldElements.creatures.Human(world, new Point(1, 1));
+        ownBody.movement = new worldElements.creatures.movement.NoMovement();
         world.addElement(ownBody);
         controllingBody = ownBody;
 
         statusEffectsMenuKey = Keyboard.getLetterCode("e");
+        waitKey = 190; //.
     }
 
     public override function update() {
@@ -47,6 +50,9 @@ class Player extends Focusable {
             }
         } else if (keyboard.pressed[statusEffectsMenuKey]) {
             showStatusEffects();
+        } else if (keyboard.pressed[waitKey]) {
+            game.beforeStep();
+            game.afterStep();
         }
     }
 

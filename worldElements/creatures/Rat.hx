@@ -10,6 +10,6 @@ class Rat extends Creature {
         stats.setMaxHP(5);
         stats.setMaxAP(1);
         stats.setAttack(1);
-        stats.speed = 150;
+        stats.speed = 50;
     }
 }

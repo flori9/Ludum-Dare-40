@@ -145,8 +145,9 @@ class World {
                 element.seenByPlayer = true;
                 element.isCurrentlyVisible = true;
             } else {
-                var nowSeen = false;
                 if (element.isEasierVisible) {
+                    var nowSeen = false;
+
                     var anyIndirectlyVisible = false;
                     forEachDirectionFromPoint(element.position, function(p) {
                         if (pathfinder.isVisible(player.controllingBody.position, p, true) && noBlockingElementsAt(p))
@@ -159,10 +160,11 @@ class World {
                         element.draw(drawer, false);
                         element.seenByPlayer = true;
                     }
-                }
-                if (! nowSeen && element.seenByPlayer) {
-                    element.draw(drawer, true);
-                    element.isCurrentlyVisible = true;
+
+                    if (! nowSeen && element.seenByPlayer) {
+                        element.draw(drawer, true);
+                        element.isCurrentlyVisible = true;
+                    }
                 }
             }
         }

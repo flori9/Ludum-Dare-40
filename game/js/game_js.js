@@ -901,9 +901,11 @@ Pathfinder.prototype = {
 var Player = function(keyboard,world,game) {
 	Focusable.call(this,keyboard,world,game);
 	this.ownBody = new worldElements_creatures_Human(world,new common_Point(1,1));
+	this.ownBody.movement = new worldElements_creatures_movement_NoMovement();
 	world.addElement(this.ownBody);
 	this.controllingBody = this.ownBody;
 	this.statusEffectsMenuKey = Keyboard.getLetterCode("e");
+	this.waitKey = 190;
 };
 Player.__name__ = true;
 Player.__super__ = Focusable;
@@ -945,6 +947,9 @@ Player.prototype = $extend(Focusable.prototype,{
 			}
 		} else if(this.keyboard.pressed[this.statusEffectsMenuKey]) {
 			this.showStatusEffects();
+		} else if(this.keyboard.pressed[this.waitKey]) {
+			this.game.beforeStep();
+			this.game.afterStep();
 		}
 	}
 	,showStatusEffects: function() {
@@ -1136,23 +1141,21 @@ World.prototype = {
 				element.draw(this.drawer,false);
 				element.seenByPlayer = true;
 				element.isCurrentlyVisible = true;
-			} else {
+			} else if(element.get_isEasierVisible()) {
 				var nowSeen = false;
-				if(element.get_isEasierVisible()) {
-					var anyIndirectlyVisible = [false];
-					this.forEachDirectionFromPoint(element.position,(function(anyIndirectlyVisible1) {
-						return function(p) {
-							if(_gthis.pathfinder.isVisible(_gthis.player.controllingBody.position,p,true) && _gthis.noBlockingElementsAt(p)) {
-								anyIndirectlyVisible1[0] = true;
-							}
-						};
-					})(anyIndirectlyVisible));
-					if(anyIndirectlyVisible[0]) {
-						nowSeen = true;
-						element.isCurrentlyVisible = true;
-						element.draw(this.drawer,false);
-						element.seenByPlayer = true;
-					}
+				var anyIndirectlyVisible = [false];
+				this.forEachDirectionFromPoint(element.position,(function(anyIndirectlyVisible1) {
+					return function(p) {
+						if(_gthis.pathfinder.isVisible(_gthis.player.controllingBody.position,p,true) && _gthis.noBlockingElementsAt(p)) {
+							anyIndirectlyVisible1[0] = true;
+						}
+					};
+				})(anyIndirectlyVisible));
+				if(anyIndirectlyVisible[0]) {
+					nowSeen = true;
+					element.isCurrentlyVisible = true;
+					element.draw(this.drawer,false);
+					element.seenByPlayer = true;
 				}
 				if(!nowSeen && element.seenByPlayer) {
 					element.draw(this.drawer,true);
@@ -2379,7 +2382,7 @@ worldElements_creatures_Rat.prototype = $extend(worldElements_creatures_Creature
 		this.stats.setMaxHP(5);
 		this.stats.setMaxAP(1);
 		this.stats.setAttack(1);
-		this.stats.speed = 150;
+		this.stats.speed = 50;
 	}
 	,__class__: worldElements_creatures_Rat
 });
@@ -2562,7 +2565,6 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 					creature.wanderTo = common_Random.fromArray(wanderToOptions).point;
 				}
 			}
-			console.log(creature.wanderTo);
 			if(creature.wanderTo != null) {
 				var wanderInfo = world.pathfinder.find(creature.position,function(p1) {
 					var otherPoint = creature.wanderTo;
@@ -2584,6 +2586,15 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 		}
 	}
 	,__class__: worldElements_creatures_movement_BasicMovement
+});
+var worldElements_creatures_movement_NoMovement = function() {
+};
+worldElements_creatures_movement_NoMovement.__name__ = true;
+worldElements_creatures_movement_NoMovement.__super__ = worldElements_creatures_movement_Movement;
+worldElements_creatures_movement_NoMovement.prototype = $extend(worldElements_creatures_movement_Movement.prototype,{
+	move: function(world,creature) {
+	}
+	,__class__: worldElements_creatures_movement_NoMovement
 });
 var worldElements_creatures_stats_CreatureStats = function(hp,ap,attack,defence) {
 	if(defence == null) {
