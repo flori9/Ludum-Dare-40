@@ -17,7 +17,7 @@ class Creature extends WorldElement {
 
     public var attackedBy:Array<Creature> = [];
 
-    var basicAttack:DirectionalAttack;
+    public var basicAttack:DirectionalAttack;
     public var actions:Array<CreatureAction>;
 
     //Creatures may move until they have less speedpoints than the player.

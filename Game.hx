@@ -47,8 +47,11 @@ class Game {
     public function focus(element:Focusable, redrawIfWorld:Bool = true) {
         focusedElement = element;
 
-        if (element.showsWorld && redrawIfWorld)
+        if (element.showsWorld && redrawIfWorld) {
             drawWorld();
+        }
+
+        focusedElement.draw();
     }
 
     public function nextFocus(redrawWorld = false) {
@@ -57,7 +60,7 @@ class Game {
         drawWorld();
     }
 
-    function drawWorld() {
+    public function drawWorld() {
         drawer.clear();
         world.draw();
     }

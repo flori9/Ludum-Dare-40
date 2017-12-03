@@ -15,4 +15,8 @@ class Focusable {
     public function update() {
 
     }
+
+    public function draw() {
+        
+    }
 }

@@ -318,6 +318,8 @@ Focusable.prototype = {
 	}
 	,update: function() {
 	}
+	,draw: function() {
+	}
 	,__class__: Focusable
 };
 var Game = function(application,stage,gameRect) {
@@ -350,6 +352,7 @@ Game.prototype = {
 		if(element.get_showsWorld() && redrawIfWorld) {
 			this.drawWorld();
 		}
+		this.focusedElement.draw();
 	}
 	,drawWorld: function() {
 		this.drawer.clear();
@@ -905,7 +908,11 @@ var Player = function(keyboard,world,game) {
 	world.addElement(this.ownBody);
 	this.controllingBody = this.ownBody;
 	this.statusEffectsMenuKey = Keyboard.getLetterCode("e");
+	this.actionsKey = Keyboard.getLetterCode("c");
 	this.waitKey = 190;
+	this.ownBody.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this.ownBody,worldElements_creatures_statusEffects_Poison,function(c) {
+		return new worldElements_creatures_statusEffects_Poison(c);
+	},"{subject} poisoned {object}!",1,"Poison","Inject poison into an enemy next to you."));
 };
 Player.__name__ = true;
 Player.__super__ = Focusable;
@@ -945,6 +952,8 @@ Player.prototype = $extend(Focusable.prototype,{
 				this.controllingBody.hasMoved = true;
 				this.game.afterStep();
 			}
+		} else if(this.keyboard.pressed[this.actionsKey]) {
+			this.showActions();
 		} else if(this.keyboard.pressed[this.statusEffectsMenuKey]) {
 			this.showStatusEffects();
 		} else if(this.keyboard.pressed[this.waitKey]) {
@@ -968,6 +977,51 @@ Player.prototype = $extend(Focusable.prototype,{
 			menu.close();
 		}));
 		menu = new ui_Menu(this.game.drawer,this.keyboard,this.world,this.game,this,"Status Effects",statusEffectMenuItems,this.statusEffectsMenuKey);
+		this.game.focus(menu);
+	}
+	,showActions: function() {
+		var _gthis = this;
+		var actionMenuItems = [];
+		var menu;
+		var showFail = function(text) {
+		};
+		var _g = 0;
+		var _g1 = this.controllingBody.actions;
+		while(_g < _g1.length) {
+			var action = [_g1[_g]];
+			++_g;
+			if(action[0] != this.controllingBody.basicAttack) {
+				actionMenuItems.push(new ui_MenuItem(action[0].abilityName + " (" + action[0].get_actionPoints() + " AP)",action[0].abilityDescription,(function(action1) {
+					return function() {
+						if(js_Boot.__instanceof(action1[0],worldElements_creatures_actions_DirectionAction)) {
+							var directionAction = action1[0];
+							var dirMenu = new ui_ChooseDirection(_gthis.keyboard,_gthis.world,_gthis.game,"Choose a direction to use " + action1[0].abilityName + ".",(function(action2) {
+								return function(dir) {
+									directionAction.setParameter(dir);
+									if(directionAction.canUse()) {
+										_gthis.controllingBody.stats.ap -= action2[0].get_actionPoints();
+										_gthis.game.focus(_gthis,false);
+										_gthis.game.beforeStep();
+										directionAction["use"]();
+										_gthis.controllingBody.hasMoved = true;
+										_gthis.game.afterStep();
+									} else {
+										showFail("You can't use " + action2[0].abilityName + " in that direction!");
+									}
+								};
+							})(action1),menu);
+							_gthis.game.focus(dirMenu);
+						} else {
+							showFail("You don't have enough AP to use " + action1[0].abilityName + "!");
+						}
+					};
+				})(action)));
+			}
+		}
+		actionMenuItems.push(new ui_MenuItem("Close Menu","",function() {
+			menu.close();
+		}));
+		menu = new ui_Menu(this.game.drawer,this.keyboard,this.world,this.game,this,"Abilities",actionMenuItems,this.actionsKey);
 		this.game.focus(menu);
 	}
 	,__class__: Player
@@ -1956,6 +2010,48 @@ js_Boot.__isNativeObj = function(o) {
 js_Boot.__resolveNativeClass = function(name) {
 	return $global[name];
 };
+var ui_ChooseDirection = function(keyboard,world,game,info,chooseFunction,innerFocusable) {
+	this.info = "";
+	Focusable.call(this,keyboard,world,game);
+	this.info = info;
+	this.chooseFunction = chooseFunction;
+	this.innerFocusable = innerFocusable;
+	this.draw();
+};
+ui_ChooseDirection.__name__ = true;
+ui_ChooseDirection.__super__ = Focusable;
+ui_ChooseDirection.prototype = $extend(Focusable.prototype,{
+	get_showsWorld: function() {
+		return true;
+	}
+	,update: function() {
+		if(this.keyboard.leftKey()) {
+			this.chooseFunction(common_Direction.Left);
+			return;
+		}
+		if(this.keyboard.rightKey()) {
+			this.chooseFunction(common_Direction.Right);
+			return;
+		}
+		if(this.keyboard.upKey()) {
+			this.chooseFunction(common_Direction.Up);
+			return;
+		}
+		if(this.keyboard.downKey()) {
+			this.chooseFunction(common_Direction.Down);
+			return;
+		}
+		if(this.keyboard.anyBack()) {
+			this.game.focus(this.innerFocusable,false);
+		}
+	}
+	,draw: function() {
+		var drawer = this.game.drawer;
+		drawer.clearLines(0,2);
+		drawer.drawText(0,0,this.info);
+	}
+	,__class__: ui_ChooseDirection
+});
 var ui_InfoDisplay = function(keyboard,world,game,innerFocusable) {
 	this.currentLine = 0;
 	this.info = "";
@@ -1976,6 +2072,9 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 			this.info += " ";
 		}
 		this.info += info;
+	}
+	,draw: function() {
+		this.drawCurrentLines(this.game.drawer);
 	}
 	,processInfo: function(drawer) {
 		var addToLast = "...";
@@ -2005,7 +2104,7 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 		this.drawCurrentLines(drawer);
 	}
 	,update: function() {
-		if(this.keyboard.anyConfirm()) {
+		if(this.keyboard.anyConfirm() || this.keyboard.anyBack()) {
 			this.currentLine += 2;
 			this.drawCurrentLines(this.game.drawer);
 			if(this.currentLine >= this.currentLines.length - 2) {
@@ -2509,6 +2608,12 @@ worldElements_creatures_actions_DirectionAction.prototype = $extend(worldElement
 	setParameter: function(direction) {
 		this.direction = direction;
 	}
+	,canUse: function() {
+		var _gthis = this;
+		return common_ArrayExtensions.any(this.elementsInDirection(),function(elem) {
+			return _gthis.canUseOnElement(elem);
+		});
+	}
 	,canUseOnCreatureFrom: function(creatures) {
 		var _gthis = this;
 		return common_ArrayExtensions.any(this.elementsInDirection(),function(elem) {
@@ -2938,8 +3043,8 @@ worldElements_creatures_statusEffects_SplitOnByGoblin.__name__ = true;
 worldElements_creatures_statusEffects_SplitOnByGoblin.__super__ = worldElements_creatures_statusEffects_StatusEffect;
 worldElements_creatures_statusEffects_SplitOnByGoblin.prototype = $extend(worldElements_creatures_statusEffects_StatusEffect.prototype,{
 	init: function() {
-		this.name = "Spit on by a goblin.";
-		this.goesAwayAfter = 30;
+		this.name = "Spit on by a goblin";
+		this.goesAwayAfter = 50;
 	}
 	,onTurn: function() {
 		if(this.goesAwayAfter <= 0) {

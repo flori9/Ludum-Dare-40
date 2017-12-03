@@ -56,7 +56,7 @@ class Menu extends Focusable {
         }
     }
 
-    public function draw() {
+    public override function draw() {
         drawer.clear();
         drawer.setMultiBackground(0, drawY, title.length, Drawer.colorToInt(DarkGray));
         drawer.drawText(0, drawY, title);

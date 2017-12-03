@@ -23,6 +23,10 @@ class InfoDisplay extends Focusable {
         this.info += info;
     }
 
+    public override function draw() {
+        drawCurrentLines(game.drawer);
+    }
+
     /**
      *  Show info, possibly taking focus
      */
@@ -48,7 +52,7 @@ class InfoDisplay extends Focusable {
     }
 
     public override function update() {
-        if (keyboard.anyConfirm()) {
+        if (keyboard.anyConfirm() || keyboard.anyBack()) {
             currentLine += 2;
             drawCurrentLines(game.drawer);
 

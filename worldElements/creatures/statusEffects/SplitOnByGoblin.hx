@@ -4,8 +4,8 @@ class SplitOnByGoblin extends StatusEffect {
     var goesAwayAfter:Int;
 
     public override function init() {
-        name = "Spit on by a goblin.";
-        goesAwayAfter = 30;
+        name = "Spit on by a goblin";
+        goesAwayAfter = 50;
     }
 
     public override function onTurn() {
