@@ -6,7 +6,7 @@ import items.Item;
 class ItemOnFloor extends WorldElement {
     override function get_isBlocking() return true;
     override function get_isViewBlocking() return false;
-    override function get_isStatic() return false;
+    override function get_isStatic() return true;
     override function get_isEasierVisible() return false;
 
     var taken = false;

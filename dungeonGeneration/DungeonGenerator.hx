@@ -10,6 +10,7 @@ enum RoomType {
     Monsters;
     End;
     None;
+    Fountain;
 }
 
 class DungeonGenerator {
@@ -279,10 +280,10 @@ class DungeonGenerator {
             return unused;
         }
 
-        //Find a room for treasure, with normally only one entrance
+        //Find a room for treasure and maybe one for fountain, with normally only one entrance
         var roomsStillToFill = getUnusedRoomsRandomOrder();
-        var addedTreasure = false, maxEntrances = 1;
-        while (! addedTreasure) {
+        var addedTreasure = false, addedFountainIfNeeded = floor != 3 && floor != 5, maxEntrances = 1;
+        while (! addedTreasure || ! addedFountainIfNeeded) {
             for (room in roomsStillToFill) {
                 var entrances = 0;
                 for (path in paths) {
@@ -290,9 +291,13 @@ class DungeonGenerator {
                         entrances += 1;
                 }
                 if (entrances <= maxEntrances) {
-                    roomFunction[room] = Treasure;
-                    addedTreasure = true;
-                    break;
+                    if (! addedTreasure) {
+                        roomFunction[room] = Treasure;
+                        addedTreasure = true;
+                    } else if (! addedFountainIfNeeded) {
+                        roomFunction[room] = Fountain;
+                        addedFountainIfNeeded = true;
+                    }
                 }
             }
             maxEntrances += 1;
@@ -324,6 +329,9 @@ class DungeonGenerator {
                         world.remainingArtifacts.remove(artifact);
                     }
                     //Protecting monsters?
+                case Fountain:
+                    world.addElement(new FountainOfLife(world, anyEmptyPositionInRoom(room, true)));
+                    addMonsters(room, 1);
                 case None:
                     //Nothing in the room
             }
@@ -343,8 +351,8 @@ class DungeonGenerator {
         return null;
     }
 
-    public function addMonsters(room:Rectangle) {
-        var points = 2 + Random.getInt(floor);
+    public function addMonsters(room:Rectangle, extraPoints = 0) {
+        var points = 2 + Random.getInt(Math.div(floor, 2), floor) + extraPoints;
         if (floor == 1)
             points = Random.getInt(1, 3);
         var creatureOptions = [{type: Goblin, points: 2},
@@ -352,6 +360,10 @@ class DungeonGenerator {
             {type: ManeatingPlant, points: 2},
             {type: Skeleton, points: 3},
             {type: Vampire, points: 4}];
+        
+        if (floor >= 3) {
+            creatureOptions.push({type: Butterfly, points: 1});
+        }
 
         for (i in 0...100) {
             var creatureOption = Random.fromArray(creatureOptions);

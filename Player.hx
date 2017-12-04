@@ -40,7 +40,7 @@ class Player extends Focusable {
             ownBody.stats.setMaxAP(ownBody.stats.maxAP + 2);
             ownBody.stats.setAttack(ownBody.stats.attack + 1);
             ownBody.actions.push(new worldElements.creatures.actions.RangedSpecialDirectionalAttack(ownBody, 1.5, "{attacker} pushed a magical blast of air at {target}. It's a critical hit for {damage} damage.",
-            "{attacker} pushed a magical blast of air at {target} for {damage} damage.", "{attacker} pushed a magical blast of air at {target}, {butDefended}", "Air Blast", "Push a powerful blast of air at an enemy. There can be a square between you and the enemy.", 4, 2));
+            "{attacker} pushed a magical blast of air at {target} for {damage} damage.", "{attacker} pushed a magical blast of air at {target}, {butDefended}", "Air Blast", "Push a powerful blast of air at an enemy. There can be a square between you and the enemy.", 3, 2));
         }
         else if (floor == 3) {
             world.info.addInfo("Floor complete! You feel healthier and more experienced! You also learnt a new ability: Mind Control!");

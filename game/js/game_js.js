@@ -344,6 +344,7 @@ Focusable.prototype = {
 	,__class__: Focusable
 };
 var Game = function(application,stage,gameRect) {
+	this.finished = false;
 	this.application = application;
 	this.stage = stage;
 	this.rect = gameRect;
@@ -398,13 +399,16 @@ Game.prototype = {
 		}
 	}
 	,updateQuickInfo: function() {
-		var info = "Floor " + this.world.floor + "/" + this.world.floorAmount + ".";
-		if(this.player.ownBody.stats.hp <= 0) {
-			info += " You're dead!";
-		} else {
-			info += " " + this.player.controllingBody.stats.getInfo();
+		if(this.finished) {
+			return;
 		}
-		this.drawer.setQuickInfo(info);
+		var quickInfoText = "Floor " + this.world.floor + "/" + this.world.floorAmount + ".";
+		if(this.player.ownBody.stats.hp <= 0) {
+			quickInfoText += " You're dead!";
+		} else {
+			quickInfoText += " " + this.player.controllingBody.stats.getInfo();
+		}
+		this.drawer.setQuickInfo(quickInfoText);
 	}
 	,beforeStep: function() {
 		this.drawer.clear();
@@ -976,24 +980,23 @@ Player.prototype = $extend(Focusable.prototype,{
 		if(floor == 2) {
 			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Air Blast!");
 			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
-			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
-			this.ownBody.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this.ownBody,1.5,"{attacker} pushed a magical blast of air at {target}. It's a critical hit for {damage} damage.","{attacker} pushed a magical blast of air at {target} for {damage} damage.","{attacker} pushed a magical blast of air at {target}, {butDefended}","Air Blast","Push a powerful blast of air at an enemy. There can be a square between you and the enemy.",4,2));
+			this.ownBody.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this.ownBody,1.5,"{attacker} pushed a magical blast of air at {target}. It's a critical hit for {damage} damage.","{attacker} pushed a magical blast of air at {target} for {damage} damage.","{attacker} pushed a magical blast of air at {target}, {butDefended}","Air Blast","Push a powerful blast of air at an enemy. There can be a square between you and the enemy.",3,2));
 		} else if(floor == 3) {
-			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Mind Control!");
+			this.world.info.addInfo("Floor complete! You feel healthier and more experienced! You also learnt a new ability: Mind Control!");
 			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
-			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
-			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
 			this.ownBody.actions.push(new worldElements_creatures_actions_TakeOverEnemy(this.ownBody));
 		} else if(floor == 4) {
 			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
 			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
-			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
 		} else if(floor == 5) {
 			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
 			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
-			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
 		}
 	}
@@ -1303,6 +1306,26 @@ World.prototype = {
 	,initArtifacts: function() {
 		this.remainingArtifacts = [{ artifact : new items_artifacts_GobletOfForgetfulness(), minFloor : 1},{ artifact : new items_artifacts_UnclearGlasses(), minFloor : 1},{ artifact : new items_artifacts_DiamondBell(), minFloor : 2},{ artifact : new items_artifacts_BeltOfSlowness(), minFloor : 3},{ artifact : new items_artifacts_WingsOfPeace(), minFloor : 3}];
 	}
+	,finishGame: function() {
+		this.elements = [];
+		var _g = [];
+		var _g2 = 0;
+		var _g1 = this.width;
+		while(_g2 < _g1) {
+			var i = _g2++;
+			var _g3 = [];
+			var _g5 = 0;
+			var _g4 = this.height;
+			while(_g5 < _g4) {
+				var j = _g5++;
+				_g3.push([]);
+			}
+			_g.push(_g3);
+		}
+		this.elementsByPosition = _g;
+		this.player.game.finished = true;
+		new ui_FinishGame(this.drawer,this.player.keyboard,this,this.player.game);
+	}
 	,nextFloor: function() {
 		this.floor++;
 		this.generateLevel();
@@ -1409,7 +1432,7 @@ World.prototype = {
 			++_g11;
 			element.isCurrentlyVisible = false;
 			var canSee = Math.sqrt((element.position.x - centerX) * (element.position.x - centerX) + (element.position.y - centerY) * (element.position.y - centerY)) <= maxSeeDistance;
-			if(canSee && this.pathfinder.isVisible(this.player.controllingBody.position,element.position,true)) {
+			if(!element.get_isEasierVisible() && (canSee && this.pathfinder.isVisible(this.player.controllingBody.position,element.position,true))) {
 				visibleElements.push(element);
 				elemAt[element.position.x][element.position.y] = true;
 			} else if(element.get_isEasierVisible()) {
@@ -1951,7 +1974,7 @@ de_polygonal_ds_tools_NativeArrayTools.blit = function(src,srcPos,dst,dstPos,n) 
 		}
 	}
 };
-var dungeonGeneration_RoomType = { __ename__ : true, __constructs__ : ["PlayerStart","Treasure","Monsters","End","None"] };
+var dungeonGeneration_RoomType = { __ename__ : true, __constructs__ : ["PlayerStart","Treasure","Monsters","End","None","Fountain"] };
 dungeonGeneration_RoomType.PlayerStart = ["PlayerStart",0];
 dungeonGeneration_RoomType.PlayerStart.toString = $estr;
 dungeonGeneration_RoomType.PlayerStart.__enum__ = dungeonGeneration_RoomType;
@@ -1967,6 +1990,9 @@ dungeonGeneration_RoomType.End.__enum__ = dungeonGeneration_RoomType;
 dungeonGeneration_RoomType.None = ["None",4];
 dungeonGeneration_RoomType.None.toString = $estr;
 dungeonGeneration_RoomType.None.__enum__ = dungeonGeneration_RoomType;
+dungeonGeneration_RoomType.Fountain = ["Fountain",5];
+dungeonGeneration_RoomType.Fountain.toString = $estr;
+dungeonGeneration_RoomType.Fountain.__enum__ = dungeonGeneration_RoomType;
 var dungeonGeneration_DungeonGenerator = function(world,floor) {
 	if(floor == null) {
 		floor = 1;
@@ -2373,8 +2399,9 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		};
 		var roomsStillToFill = getUnusedRoomsRandomOrder();
 		var addedTreasure = false;
+		var addedFountainIfNeeded = this.floor != 3 && this.floor != 5;
 		var maxEntrances = 1;
-		while(!addedTreasure) {
+		while(!addedTreasure || !addedFountainIfNeeded) {
 			var _g110 = 0;
 			while(_g110 < roomsStillToFill.length) {
 				var room4 = roomsStillToFill[_g110];
@@ -2389,10 +2416,15 @@ dungeonGeneration_DungeonGenerator.prototype = {
 					}
 				}
 				if(entrances <= maxEntrances) {
-					var v3 = dungeonGeneration_RoomType.Treasure;
-					roomFunction.set(room4,v3);
-					addedTreasure = true;
-					break;
+					if(!addedTreasure) {
+						var v3 = dungeonGeneration_RoomType.Treasure;
+						roomFunction.set(room4,v3);
+						addedTreasure = true;
+					} else if(!addedFountainIfNeeded) {
+						var v4 = dungeonGeneration_RoomType.Fountain;
+						roomFunction.set(room4,v4);
+						addedFountainIfNeeded = true;
+					}
 				}
 			}
 			++maxEntrances;
@@ -2402,8 +2434,8 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		var _g111 = roomsStillToFill1.length - 2;
 		while(_g26 < _g111) {
 			var i5 = _g26++;
-			var v4 = dungeonGeneration_RoomType.Monsters;
-			roomFunction.set(roomsStillToFill1[i5],v4);
+			var v5 = dungeonGeneration_RoomType.Monsters;
+			roomFunction.set(roomsStillToFill1[i5],v5);
 		}
 		var room5 = roomFunction.keys();
 		while(room5.hasNext()) {
@@ -2433,6 +2465,10 @@ dungeonGeneration_DungeonGenerator.prototype = {
 				break;
 			case 4:
 				break;
+			case 5:
+				this.world.addElement(new worldElements_FountainOfLife(this.world,this.anyEmptyPositionInRoom(room6,true)));
+				this.addMonsters(room6,1);
+				break;
 			}
 		}
 		return basicDungeon;
@@ -2451,12 +2487,18 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		}
 		return null;
 	}
-	,addMonsters: function(room) {
-		var points = 2 + common_Random.getInt(this.floor);
+	,addMonsters: function(room,extraPoints) {
+		if(extraPoints == null) {
+			extraPoints = 0;
+		}
+		var points = 2 + common_Random.getInt(this.floor / 2 | 0,this.floor) + extraPoints;
 		if(this.floor == 1) {
 			points = common_Random.getInt(1,3);
 		}
-		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1},{ type : worldElements_creatures_ManeatingPlant, points : 2},{ type : worldElements_creatures_Skeleton, points : 3},{ type : worldElements_creatures_Vampire, points : 5}];
+		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1},{ type : worldElements_creatures_ManeatingPlant, points : 2},{ type : worldElements_creatures_Skeleton, points : 3},{ type : worldElements_creatures_Vampire, points : 4}];
+		if(this.floor >= 3) {
+			creatureOptions.push({ type : worldElements_creatures_Butterfly, points : 1});
+		}
 		var _g = 0;
 		while(_g < 100) {
 			var i = _g++;
@@ -3098,6 +3140,62 @@ ui_ChooseDirection.prototype = $extend(Focusable.prototype,{
 	}
 	,__class__: ui_ChooseDirection
 });
+var ui_FinishGame = function(drawer,keyboard,world,game) {
+	this.drawer = drawer;
+	Focusable.call(this,keyboard,world,game);
+	game.focus(this);
+	this.draw();
+};
+ui_FinishGame.__name__ = true;
+ui_FinishGame.__super__ = Focusable;
+ui_FinishGame.prototype = $extend(Focusable.prototype,{
+	update: function() {
+		if(this.keyboard.anyBack()) {
+			this.game.restartGame();
+		}
+	}
+	,draw: function() {
+		this.drawer.clear();
+		var drawY = 2;
+		var title = "Game Complete!";
+		this.drawer.setMultiBackground(0,drawY,title.length,Drawer.colorToInt(Color.DarkGray));
+		this.drawer.drawText(0,drawY,title);
+		++drawY;
+		var text = "";
+		text += "You climbed the long ladder all the way to the surface!";
+		var totalAmountOfArtifacts = 0;
+		var _g = 0;
+		var _g1 = this.game.player.controllingBody.inventory;
+		while(_g < _g1.length) {
+			var item = _g1[_g];
+			++_g;
+			if(js_Boot.__instanceof(item,items_artifacts_Artifact)) {
+				++totalAmountOfArtifacts;
+			}
+		}
+		var totalArtifactValue = common_ArrayExtensions.sum(this.game.player.controllingBody.inventory,function(it) {
+			return it.get_value();
+		});
+		text += " You took " + totalAmountOfArtifacts + " cursed artifact" + (totalAmountOfArtifacts == 1 ? "" : "s") + " for a total profit of " + totalArtifactValue + " gold.";
+		if(totalArtifactValue == 0) {
+			text += " You're just as poor as before. Why did you even enter the dungeon?";
+		} else if(totalArtifactValue <= 300) {
+			text += " That's not bad, but you feel you could've made more.";
+		} else if(totalArtifactValue <= 600) {
+			text += " That's a pretty nice sum of money.";
+		} else if(totalArtifactValue <= 1200) {
+			text += " You feel pretty rich now!";
+		} else if(totalArtifactValue <= 1600) {
+			text += " You feel really rich now!";
+		} else {
+			text += " That'll be plenty for the rest of your life!";
+		}
+		text += "\n\nThis game was made by Florian van Strien in 48 hours for the Ludum Dare Compo 40. Thank you very much for playing!";
+		this.drawer.drawText(0,drawY,text);
+		this.drawer.drawText(0,22,"Press Escape or Backspace if you'd like to play again.");
+	}
+	,__class__: ui_FinishGame
+});
 var ui_InfoDisplay = function(keyboard,world,game,innerFocusable) {
 	this.currentLine = 0;
 	this.info = "";
@@ -3358,7 +3456,7 @@ worldElements_Floor.prototype = $extend(worldElements_WorldElement.prototype,{
 		return true;
 	}
 	,get_isEasierVisible: function() {
-		return true;
+		return false;
 	}
 	,init: function() {
 		this.color = 2105376;
@@ -3370,6 +3468,55 @@ worldElements_Floor.prototype = $extend(worldElements_WorldElement.prototype,{
 		return "";
 	}
 	,__class__: worldElements_Floor
+});
+var worldElements_FountainOfLife = function(world,position) {
+	worldElements_WorldElement.call(this,world,position);
+};
+worldElements_FountainOfLife.__name__ = true;
+worldElements_FountainOfLife.__super__ = worldElements_WorldElement;
+worldElements_FountainOfLife.prototype = $extend(worldElements_WorldElement.prototype,{
+	get_isBlocking: function() {
+		return true;
+	}
+	,get_isViewBlocking: function() {
+		return false;
+	}
+	,get_isStatic: function() {
+		return true;
+	}
+	,get_isEasierVisible: function() {
+		return false;
+	}
+	,init: function() {
+		this.color = 4756415;
+		this.character = "¶";
+	}
+	,getInfo: function() {
+		return "A beautiful fountain.";
+	}
+	,hasActionFor: function(triggeringWorldElement) {
+		if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
+			return true;
+		}
+		return false;
+	}
+	,performActionFor: function(triggeringWorldElement) {
+		if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
+			var triggeringCreature = triggeringWorldElement;
+			if(triggeringCreature.isUndead) {
+				if(triggeringCreature.isInterestingForPlayer()) {
+					this.world.info.addInfo("You drink from the fountain and lose 2 HP.");
+				}
+				triggeringCreature.stats.hp -= 2;
+			} else {
+				if(triggeringCreature.isInterestingForPlayer()) {
+					this.world.info.addInfo("You drink from the fountain and gain 2 HP.");
+				}
+				triggeringCreature.stats.gainHP(2);
+			}
+		}
+	}
+	,__class__: worldElements_FountainOfLife
 });
 var worldElements_ItemOnFloor = function(world,position,items) {
 	this.taken = false;
@@ -3386,7 +3533,7 @@ worldElements_ItemOnFloor.prototype = $extend(worldElements_WorldElement.prototy
 		return false;
 	}
 	,get_isStatic: function() {
-		return false;
+		return true;
 	}
 	,get_isEasierVisible: function() {
 		return false;
@@ -3461,12 +3608,19 @@ worldElements_Ladder.prototype = $extend(worldElements_WorldElement.prototype,{
 	,get_isEasierVisible: function() {
 		return false;
 	}
+	,get_isUp: function() {
+		return this.world.floor == this.world.floorAmount;
+	}
 	,init: function() {
 		this.color = 12303524;
 		this.character = "#";
 	}
 	,getInfo: function() {
-		return "A ladder downwards.";
+		if(this.get_isUp()) {
+			return "A long ladder to the surface.";
+		} else {
+			return "A ladder downwards.";
+		}
 	}
 	,hasActionFor: function(triggeringWorldElement) {
 		if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
@@ -3483,10 +3637,14 @@ worldElements_Ladder.prototype = $extend(worldElements_WorldElement.prototype,{
 		if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
 			var triggeringCreature = triggeringWorldElement;
 			if(this.world.player.ownBody == triggeringCreature) {
-				this.world.info.addInfo("You climbed down the ladder. It crumbled behind you.");
-				this.world.nextFloor();
+				if(this.get_isUp()) {
+					this.world.finishGame();
+				} else {
+					this.world.info.addInfo("You climbed down the ladder. It crumbled behind you.");
+					this.world.nextFloor();
+				}
 			} else if(this.world.player.controllingBody == triggeringCreature) {
-				this.world.info.addInfo("You'd like to climb down the ladder with your own body.");
+				this.world.info.addInfo("You'd like to climb " + (this.get_isUp() ? "up" : "down") + " the ladder with your own body.");
 			}
 		}
 	}
@@ -3806,6 +3964,26 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 	}
 	,__class__: worldElements_creatures_Creature
 });
+var worldElements_creatures_Butterfly = function(world,position) {
+	worldElements_creatures_Creature.call(this,world,position);
+};
+worldElements_creatures_Butterfly.__name__ = true;
+worldElements_creatures_Butterfly.__super__ = worldElements_creatures_Creature;
+worldElements_creatures_Butterfly.prototype = $extend(worldElements_creatures_Creature.prototype,{
+	init: function() {
+		worldElements_creatures_Creature.prototype.init.call(this);
+		this.color = 11149756;
+		this.character = "b";
+		this.creatureTypeName = "gigantic butterfly";
+		this.stats.setMaxHP(4);
+		this.stats.setMaxAP(2);
+		this.stats.setAttack(2);
+		this.stats.setSpeed(125);
+		this.stats.setCritChance(0.1);
+		this.actions.push(new worldElements_creatures_actions_SpecialDirectionalAttack(this,1.2,"","{attacker} licked {target} with {owner} rough tongue for {damage} damage.","{attacker} tried to lick {target} with {owner} rough tongue, {butDefended}","Rough Tounge","Lick a nearby enemy with your rough tongue.",2,true));
+	}
+	,__class__: worldElements_creatures_Butterfly
+});
 var worldElements_creatures_Goblin = function(world,position) {
 	worldElements_creatures_Creature.call(this,world,position);
 };
@@ -3885,12 +4063,13 @@ worldElements_creatures_Rat.prototype = $extend(worldElements_creatures_Creature
 		this.character = "r";
 		this.creatureTypeName = "rat";
 		this.stats.setMaxHP(5);
-		this.stats.setMaxAP(1);
+		this.stats.setMaxAP(2);
+		this.stats.setAPRegen(30);
 		this.stats.setAttack(1);
 		this.stats.setSpeed(150);
 		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_Poison,function(c) {
 			return new worldElements_creatures_statusEffects_Poison(c);
-		},"{subject} poisoned {object}!",1,"Rat Poison","Inject poison into an enemy next to you."));
+		},"{subject} poisoned {object}!",2,"Rat Poison","Inject poison into an enemy next to you."));
 	}
 	,__class__: worldElements_creatures_Rat
 });
@@ -3904,7 +4083,7 @@ worldElements_creatures_Skeleton.prototype = $extend(worldElements_creatures_Cre
 		worldElements_creatures_Creature.prototype.init.call(this);
 		this.color = 13684944;
 		this.character = "s";
-		this.creatureTypeName = "human skeleton";
+		this.creatureTypeName = "skeleton";
 		this.stats.setMaxHP(10);
 		this.stats.setMaxAP(5);
 		this.stats.setAttack(5);
@@ -4106,7 +4285,7 @@ worldElements_creatures_actions_AttackCalculator.basicAttack = function(attackin
 	var isCritical = false;
 	if(!neverCrit && common_Random.getFloat() < attackingCreature.stats.critChance) {
 		isCritical = true;
-		attackPart += Math.ceil(attackingCreature.stats.attack * 0.67);
+		attackPart += Math.ceil(attackingCreature.stats.attack * 0.5);
 		var val1 = attackPart - 1;
 		if(defencePart < val1) {
 			defencePart = defencePart;
@@ -4826,7 +5005,9 @@ worldElements_creatures_statusEffects_Slowed.prototype = $extend(worldElements_c
 	,onTurn: function() {
 		if(this.goesAwayAfter <= 0) {
 			if(this.creature.isInterestingForPlayer()) {
-				this.creature.world.info.addInfo("" + this.creature.getNameToUse() + " " + this.creature.getWereOrWas() + " no longer slowed.");
+				var tmp = this.creature.world.info;
+				var str = "" + this.creature.getNameToUse() + " " + this.creature.getWereOrWas() + " no longer slowed.";
+				tmp.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
 			}
 			this.ended = true;
 		} else {

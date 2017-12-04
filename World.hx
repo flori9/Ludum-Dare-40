@@ -57,6 +57,17 @@ class World {
         ];
     }
 
+    /**
+     *  Show a message at game end!
+     */
+    public function finishGame() {
+        elements = new Array<WorldElement>();
+        elementsByPosition = [for (i in 0...width)
+            [for (j in 0...height) []]];
+        player.game.finished = true;
+        new ui.FinishGame(drawer, player.keyboard, this, player.game);
+    }
+
     public function nextFloor() {
         floor++;
         generateLevel();
@@ -179,7 +190,7 @@ class World {
             var canSee = Math.sqrt((element.position.x - centerX) * (element.position.x - centerX) +
                 (element.position.y - centerY) * (element.position.y - centerY)) <= maxSeeDistance;
 
-            if (canSee && pathfinder.isVisible(player.controllingBody.position, element.position, true)) {
+            if (! element.isEasierVisible && (canSee && pathfinder.isVisible(player.controllingBody.position, element.position, true))) {
                 visibleElements.push(element);
                 elemAt[element.position.x][element.position.y] = true;
             } else {

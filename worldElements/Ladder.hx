@@ -8,13 +8,19 @@ class Ladder extends WorldElement {
     override function get_isStatic() return true;
     override function get_isEasierVisible() return false;
 
+    public var isUp(get, never):Bool;
+    function get_isUp() return world.floor == world.floorAmount;
+
     override function init() {
         color = 0xBBBCA4;
         character = "#";
     }
     
     public override function getInfo():String {
-        return "A ladder downwards.";
+        return if (isUp)
+            "A long ladder to the surface.";
+        else
+            "A ladder downwards.";
     }
 
     public override function hasActionFor(triggeringWorldElement:WorldElement) {
@@ -31,10 +37,14 @@ class Ladder extends WorldElement {
             var triggeringCreature:Creature = cast triggeringWorldElement;
             if (world.player.ownBody == triggeringCreature) {
                 //Move down
-                world.info.addInfo("You climbed down the ladder. It crumbled behind you.");
-                world.nextFloor();
+                if (isUp) {
+                    world.finishGame();
+                } else {
+                    world.info.addInfo("You climbed down the ladder. It crumbled behind you.");
+                    world.nextFloor();
+                }
             } else if (world.player.controllingBody == triggeringCreature) {
-                world.info.addInfo("You'd like to climb down the ladder with your own body.");
+                world.info.addInfo("You'd like to climb " + (isUp ? "up" : "down") +" the ladder with your own body.");
             }
         }
     }

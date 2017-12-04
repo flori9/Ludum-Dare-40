@@ -15,6 +15,7 @@ class Game {
     public var info:ui.InfoDisplay;
 
     var focusedElement:Focusable;
+    public var finished = false;
 
 	public function new(application, stage, gameRect) {
 		this.application = application;
@@ -94,12 +95,15 @@ class Game {
     }
 
     public function updateQuickInfo() {
-        var info = 'Floor ${world.floor}/${world.floorAmount}.';
+        if (finished)
+            return;
+
+        var quickInfoText = 'Floor ${world.floor}/${world.floorAmount}.';
         if (player.ownBody.stats.hp <= 0)
-            info += " You're dead!";
+            quickInfoText += " You're dead!";
         else
-            info += " " + player.controllingBody.stats.getInfo();
-        drawer.setQuickInfo(info);
+            quickInfoText += " " + player.controllingBody.stats.getInfo();
+        drawer.setQuickInfo(quickInfoText);
     }
 
     /**

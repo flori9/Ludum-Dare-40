@@ -11,8 +11,8 @@ class FountainOfLife extends WorldElement {
 
 
     override function init() {
-        color = 0xb0b0b0;
-        character = "+";
+        color = 0x4893BF;
+        character = "¶";
     }
     
     public override function getInfo():String {
@@ -21,9 +21,7 @@ class FountainOfLife extends WorldElement {
 
     public override function hasActionFor(triggeringWorldElement:WorldElement) {
         if (Std.is(triggeringWorldElement, Creature)) {
-            var triggeringCreature:Creature = cast triggeringWorldElement;
-            return !triggeringCreature.isUndead || world.player.controllingBody == triggeringCreature || world.player.ownBody == triggeringCreature;
-            //todo: show message if can't take
+            return true;
         }
         return false;
     }
@@ -31,12 +29,16 @@ class FountainOfLife extends WorldElement {
     public override function performActionFor(triggeringWorldElement:WorldElement) {
         if (Std.is(triggeringWorldElement, Creature)) {
             var triggeringCreature:Creature = cast triggeringWorldElement;
-            if (world.player.ownBody == triggeringCreature) {
-                //Move down
-                world.info.addInfo("You climbed down the ladder. It crumbled behind you.");
-                world.nextFloor();
-            } else if (world.player.controllingBody == triggeringCreature) {
-                world.info.addInfo("You'd like to climb down the ladder with your own body.");
+            if (triggeringCreature.isUndead) {
+                if (triggeringCreature.isInterestingForPlayer()) {
+                    world.info.addInfo("You drink from the fountain and lose 2 HP.");
+                }
+                triggeringCreature.stats.hp -= 2;
+            } else {
+                if (triggeringCreature.isInterestingForPlayer()) {
+                    world.info.addInfo("You drink from the fountain and gain 2 HP.");
+                }
+                triggeringCreature.stats.gainHP(2);
             }
         }
     }

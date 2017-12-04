@@ -8,7 +8,7 @@ class Skeleton extends Creature {
 
         color = 0xd0d0d0;
         character = "s";
-        creatureTypeName = "human skeleton";
+        creatureTypeName = "skeleton";
         stats.setMaxHP(10);
         stats.setMaxAP(5);
         stats.setAttack(5);

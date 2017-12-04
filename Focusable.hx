@@ -1,7 +1,7 @@
 class Focusable {
-    var keyboard:Keyboard;
+    public var keyboard:Keyboard;
     var world:World;
-    var game:Game;
+    public var game:Game;
 
     public var showsWorld(get, never):Bool;
     function get_showsWorld() return false;
@@ -17,6 +17,6 @@ class Focusable {
     }
 
     public function draw() {
-        
+
     }
 }
