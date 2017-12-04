@@ -498,12 +498,14 @@ var Keyboard = function() {
 			_gthis.pressed[keyCode] = true;
 			_gthis.down[keyCode] = true;
 		}
+		event.preventDefault();
 	},false);
 	window.addEventListener("keyup",function(event1) {
 		var keyCode1 = event1.keyCode;
 		if(keyCode1 < 256) {
 			_gthis.down[keyCode1] = false;
 		}
+		event1.preventDefault();
 	},false);
 };
 Keyboard.__name__ = true;
@@ -989,19 +991,19 @@ Player.prototype = $extend(Focusable.prototype,{
 			this.ownBody.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this.ownBody,1.5,"{attacker} pushed a magical blast of air at {target}. It was a critical hit for {damage} damage.","{attacker} pushed a magical blast of air at {target} for {damage} damage.","{attacker} pushed a magical blast of air at {target}, {butDefended}","Air Blast","Push a powerful blast of air at an enemy. There can be a square between you and the enemy.",3,2));
 		} else if(floor == 3) {
 			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Mind Control!");
-			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
-			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
+			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 4);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
 			this.ownBody.actions.push(new worldElements_creatures_actions_TakeOverEnemy(this.ownBody));
 		} else if(floor == 4) {
 			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Magical Healing!");
 			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 4);
-			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 4);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
 			this.ownBody.actions.push(new worldElements_creatures_actions_Heal(this.ownBody,8));
 		} else if(floor == 5) {
 			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
-			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 5);
+			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 4);
 			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
 		}
@@ -2507,24 +2509,27 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		if(extraPoints == null) {
 			extraPoints = 0;
 		}
-		if(this.floor >= 3) {
-			++extraPoints;
-		}
 		var points = 2 + common_Random.getInt(this.floor / 2 | 0,this.floor) + extraPoints;
 		if(this.floor == 1) {
 			points = common_Random.getInt(1,3);
 		}
 		var vampire = { type : worldElements_creatures_Vampire, points : 4};
 		var wolf = { type : worldElements_creatures_Wolf, points : 3};
-		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1},{ type : worldElements_creatures_ManeatingPlant, points : 2},{ type : worldElements_creatures_Skeleton, points : 3},vampire,{ type : worldElements_creatures_FlyingEye, points : 5}];
+		var flyingEye = { type : worldElements_creatures_FlyingEye, points : 5};
+		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1},{ type : worldElements_creatures_ManeatingPlant, points : 2},{ type : worldElements_creatures_Skeleton, points : 3}];
 		if(this.floor >= 3) {
 			creatureOptions.push(wolf);
 			creatureOptions.push({ type : worldElements_creatures_Butterfly, points : 1});
+			if(this.floor == 3 && extraPoints >= 1) {
+				creatureOptions.push(vampire);
+			}
 		}
 		if(this.floor >= 4) {
+			creatureOptions.push(vampire);
 			creatureOptions.push(wolf);
 		}
 		if(this.floor >= 5) {
+			creatureOptions.push(flyingEye);
 			creatureOptions.push(vampire);
 		}
 		var _g = 0;

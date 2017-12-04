@@ -32,6 +32,7 @@ class Keyboard {
                 pressed[keyCode] = true;
                 down[keyCode] = true;
             }
+            event.preventDefault();
         }, false);
 
         js.Browser.window.addEventListener("keyup", function(event:js.html.KeyboardEvent) {
@@ -39,6 +40,7 @@ class Keyboard {
             if (keyCode < keys) {
                 down[keyCode] = false;
             }
+            event.preventDefault();
         }, false);
     }
 

@@ -354,23 +354,19 @@ class DungeonGenerator {
     }
 
     public function addMonsters(room:Rectangle, extraPoints = 0) {
-        if (floor >= 3)
-            extraPoints += 1;
-
         var points = 2 + Random.getInt(Math.div(floor, 2), floor) + extraPoints;
         if (floor == 1)
             points = Random.getInt(1, 3);
-        var vampire = {type: Vampire, points: 4}, wolf = {type: Wolf, points: 3};
+        var vampire = {type: Vampire, points: 4}, wolf = {type: Wolf, points: 3}, flyingEye = {type: FlyingEye, points: 5};
         var creatureOptions = [{type: Goblin, points: 2},
             {type: Rat, points: 1},
             {type: ManeatingPlant, points: 2},
-            {type: Skeleton, points: 3},
-            {type: FlyingEye, points: 5}];
+            {type: Skeleton, points: 3}];
         
         if (floor >= 3) {
             creatureOptions.push(wolf);
             creatureOptions.push({type: Butterfly, points: 1});
-            if (floor == 3 && extraPoints > 1)
+            if (floor == 3 && extraPoints >= 1)
                 creatureOptions.push(vampire);
         }
 
@@ -379,8 +375,10 @@ class DungeonGenerator {
             creatureOptions.push(wolf);
         }
 
-        if (floor >= 5)
+        if (floor >= 5) {
+            creatureOptions.push(flyingEye);
             creatureOptions.push(vampire);
+        }
 
         for (i in 0...100) {
             var creatureOption = Random.fromArray(creatureOptions);
