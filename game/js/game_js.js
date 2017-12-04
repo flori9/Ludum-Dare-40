@@ -666,6 +666,7 @@ pixi_plugins_app_Application.prototype = {
 var Main = function() {
 	pixi_plugins_app_Application.call(this);
 	this.init();
+	this.renderer.plugins.interaction.autoPreventDefault = false;
 };
 Main.__name__ = true;
 Main.main = function() {
@@ -1837,7 +1838,7 @@ var de_polygonal_ds_ArrayedQueue = function(initialCapacity,source,fixed) {
 		var _g = this.mSize;
 		while(_g1 < _g) {
 			var i = _g1++;
-			d[i] = source[i];
+			this.mData[i] = source[i];
 		}
 	}
 	if(fixed) {
@@ -1926,13 +1927,13 @@ de_polygonal_ds_tools_NativeArrayTools.__name__ = true;
 de_polygonal_ds_tools_NativeArrayTools.blit = function(src,srcPos,dst,dstPos,n) {
 	if(n > 0) {
 		if(true != srcPos < src.length) {
-			throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("srcPos out of range" + " (srcPos < size(src))",{ fileName : "NativeArrayTools.hx", lineNumber : 187, className : "de.polygonal.ds.tools.NativeArrayTools", methodName : "blit"}));
+			throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("srcPos out of range" + " (srcPos < size(src))",{ fileName : "NativeArrayTools.hx", lineNumber : 188, className : "de.polygonal.ds.tools.NativeArrayTools", methodName : "blit"}));
 		}
 		if(true != dstPos < dst.length) {
-			throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("dstPos out of range" + " (dstPos < size(dst))",{ fileName : "NativeArrayTools.hx", lineNumber : 188, className : "de.polygonal.ds.tools.NativeArrayTools", methodName : "blit"}));
+			throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("dstPos out of range" + " (dstPos < size(dst))",{ fileName : "NativeArrayTools.hx", lineNumber : 189, className : "de.polygonal.ds.tools.NativeArrayTools", methodName : "blit"}));
 		}
 		if(true != (srcPos + n <= src.length && dstPos + n <= dst.length)) {
-			throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("n out of range" + " (srcPos + n <= size(src) && dstPos + n <= size(dst))",{ fileName : "NativeArrayTools.hx", lineNumber : 189, className : "de.polygonal.ds.tools.NativeArrayTools", methodName : "blit"}));
+			throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("n out of range" + " (srcPos + n <= size(src) && dstPos + n <= size(dst))",{ fileName : "NativeArrayTools.hx", lineNumber : 190, className : "de.polygonal.ds.tools.NativeArrayTools", methodName : "blit"}));
 		}
 		if(src == dst) {
 			if(srcPos < dstPos) {

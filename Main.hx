@@ -20,6 +20,7 @@ class Main extends Application {
 		super();
 
 		init();
+        renderer.plugins.interaction.autoPreventDefault = false;
 	}
 
 	/** Initialize the display and game. */
