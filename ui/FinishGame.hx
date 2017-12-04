@@ -25,7 +25,7 @@ class FinishGame extends Focusable {
     public override function draw() {
         drawer.clear();
         var drawY = 2;
-        var title = "Game Complete!";
+        var title = "Game Complete! Great job!";
         drawer.setMultiBackground(0, drawY, title.length, Drawer.colorToInt(DarkGray));
         drawer.drawText(0, drawY, title);
         drawY += 1;

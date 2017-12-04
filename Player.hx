@@ -11,6 +11,7 @@ class Player extends Focusable {
     var actionsKey:Int;
     var waitKey:Int;
     var inventoryMenuKey:Int;
+    public var loseMindControlIn:Int = 0;
 
     override function get_showsWorld() return true;
 
@@ -39,24 +40,26 @@ class Player extends Focusable {
             ownBody.stats.setMaxHP(ownBody.stats.maxHP + 3);
             ownBody.stats.setMaxAP(ownBody.stats.maxAP + 2);
             ownBody.stats.setAttack(ownBody.stats.attack + 1);
-            ownBody.actions.push(new worldElements.creatures.actions.RangedSpecialDirectionalAttack(ownBody, 1.5, "{attacker} pushed a magical blast of air at {target}. It's a critical hit for {damage} damage.",
+            ownBody.actions.push(new worldElements.creatures.actions.RangedSpecialDirectionalAttack(ownBody, 1.5, "{attacker} pushed a magical blast of air at {target}. It was a critical hit for {damage} damage.",
             "{attacker} pushed a magical blast of air at {target} for {damage} damage.", "{attacker} pushed a magical blast of air at {target}, {butDefended}", "Air Blast", "Push a powerful blast of air at an enemy. There can be a square between you and the enemy.", 3, 2));
         }
         else if (floor == 3) {
-            world.info.addInfo("Floor complete! You feel healthier and more experienced! You also learnt a new ability: Mind Control!");
-            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 3);
-            ownBody.stats.setMaxAP(ownBody.stats.maxAP + 2);
+            world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Mind Control!");
+            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 4);
+            ownBody.stats.setMaxAP(ownBody.stats.maxAP + 3);
+            ownBody.stats.setAttack(ownBody.stats.attack + 1);
             ownBody.actions.push(new TakeOverEnemy(ownBody));
         }
         else if (floor == 4) {
-            world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
-            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 3);
-            ownBody.stats.setMaxAP(ownBody.stats.maxAP + 2);
+            world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Magical Healing!");
+            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 4);
+            ownBody.stats.setMaxAP(ownBody.stats.maxAP + 3);
             ownBody.stats.setAttack(ownBody.stats.attack + 1);
+            ownBody.actions.push(new Heal(ownBody, 8));
         }
         else if (floor == 5) {
             world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
-            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 3);
+            ownBody.stats.setMaxHP(ownBody.stats.maxHP + 4);
             ownBody.stats.setMaxAP(ownBody.stats.maxAP + 2);
             ownBody.stats.setAttack(ownBody.stats.attack + 1);
         }
@@ -131,10 +134,16 @@ class Player extends Focusable {
             controllingBody = ownBody;
             world.addElement(new worldElements.PlayerBody(world, new Point(ownBody.position.x, ownBody.position.y)));
             game.info.addInfo("You are dead! Press Space or Enter to restart.");
-        }
-        else if (controllingBody.stats.hp <= 0) {
+        } else if (controllingBody.stats.hp <= 0) {
             stopTakeover();
             game.info.addInfo("You found yourself back in your own body.");
+        } else if (ownBody != controllingBody) {
+            loseMindControlIn--;
+            if (loseMindControlIn <= 0) {
+                var origControllingBody = controllingBody;
+                stopTakeover();
+                game.info.addInfo("You lost control over " + origControllingBody.getNameToUse() + " and found yourself back in your own body.");
+            }
         }
     }
 

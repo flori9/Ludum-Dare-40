@@ -328,7 +328,9 @@ class DungeonGenerator {
                         world.addElement(new ItemOnFloor(world, anyEmptyPositionInRoom(room, true), [artifact.artifact]));
                         world.remainingArtifacts.remove(artifact);
                     }
-                    //Protecting monsters?
+                    //Protecting monsters
+                    if (floor == 5)
+                        world.addElement(new FlyingEye(world, anyEmptyPositionInRoom(room)));
                 case Fountain:
                     world.addElement(new FountainOfLife(world, anyEmptyPositionInRoom(room, true)));
                     addMonsters(room, 1);
@@ -345,25 +347,40 @@ class DungeonGenerator {
         while (tries < 1000) {
             var pointX = Random.getInt(room.x + (notEdge ? 1 : 0), room.x2 - (notEdge ? 1 : 0)),
                 pointY = Random.getInt(room.y + (notEdge ? 1 : 0), room.y2 - (notEdge ? 1 : 0));
-            if (world.noBlockingElementsAt(new Point(pointX, pointY)))
+            if (world.noBlockingElementsAt(new Point(pointX, pointY), false))
                 return new Point(pointX, pointY);
         }
         return null;
     }
 
     public function addMonsters(room:Rectangle, extraPoints = 0) {
+        if (floor >= 3)
+            extraPoints += 1;
+
         var points = 2 + Random.getInt(Math.div(floor, 2), floor) + extraPoints;
         if (floor == 1)
             points = Random.getInt(1, 3);
+        var vampire = {type: Vampire, points: 4}, wolf = {type: Wolf, points: 3};
         var creatureOptions = [{type: Goblin, points: 2},
             {type: Rat, points: 1},
             {type: ManeatingPlant, points: 2},
             {type: Skeleton, points: 3},
-            {type: Vampire, points: 4}];
+            {type: FlyingEye, points: 5}];
         
         if (floor >= 3) {
+            creatureOptions.push(wolf);
             creatureOptions.push({type: Butterfly, points: 1});
+            if (floor == 3 && extraPoints > 1)
+                creatureOptions.push(vampire);
         }
+
+        if (floor >= 4) {
+            creatureOptions.push(vampire);
+            creatureOptions.push(wolf);
+        }
+
+        if (floor >= 5)
+            creatureOptions.push(vampire);
 
         for (i in 0...100) {
             var creatureOption = Random.fromArray(creatureOptions);

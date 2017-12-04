@@ -9,15 +9,15 @@ class Vampire extends Creature {
         color = 0xff0000;
         character = "v";
         creatureTypeName = "vampire";
-        stats.setMaxHP(20);
+        stats.setMaxHP(15);
         stats.setMaxAP(9);
         stats.setAPRegen(5);
-        stats.setAttack(8);
+        stats.setAttack(6);
         stats.setSpeed(125);
         actions.push(new worldElements.creatures.actions.SpecialDirectionalAttack(this, 0.7, "",
-            "{attacker} drunk blood from {target} for {damage} damage, healing {attackerReference} for that amount.",
+            "{attacker} drunk blood from {target} for {damage} damage, healing {attackerReference} by that amount.",
             "{attacker} tried to drink blood from {target}, {butDefended}",
-            "Drink Blood", "Drink blood from an enemy, healing you for the damage done.", 4, true,
+            "Drink Blood", "Drink blood from an enemy, healing you for the damage done.", 5, true,
             function (dmg) stats.gainHP(dmg)));
 
         creatureAttackVerb = "bit";
@@ -25,6 +25,9 @@ class Vampire extends Creature {
         aggressiveToPlayerIfNear = true;
         aggressiveNearDistance = 10;
         initAsHumanoid();
+
+        followTimeWithoutSee = 10;
+
         isUndead = true;
     }
 }

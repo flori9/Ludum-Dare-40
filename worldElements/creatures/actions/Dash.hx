@@ -1,13 +1,26 @@
 package worldElements.creatures.actions;
 
 class Dash extends DirectionAction {
-    override function get_actionPoints() return 2;
+    override function get_actionPoints() return ap;
 
-    public function new(creature) {
+    public var verb:String = "dash into";
+    public var fullVerb:String = "dash into";
+    public var dashSize = 4;
+    public var ap = 2;
+
+    public function new(creature, isLeap = false) {
         super(creature);
         
-        this.abilityName = "Dash";
-        this.abilityDescription = "Move up to three spaces in one direction. If you hit an enemy, attack it.";
+        if (isLeap) {
+            this.abilityName = "Wolf Leap";
+            this.abilityDescription = "Move up to two spaces in one direction. If you hit an enemy, attack it.";
+            verb = "leaped onto";
+            fullVerb = "leaped onto";
+            dashSize = 3;
+        } else {
+            this.abilityName = "Dash";
+            this.abilityDescription = "Move up to three spaces in one direction. If you hit an enemy, attack it.";
+        }
     }
 
     public override function canUse() {
@@ -21,7 +34,7 @@ class Dash extends DirectionAction {
     public override function canUseOnCreatureFrom(creatures:Array<Creature>) {
         if (! canUse()) return false;
         var pos = creature.position;
-        for (i in 0...4) {
+        for (i in 0...dashSize) {
             pos = creature.world.positionInDirection(pos, direction);
             if (canUseOnAnyCreatureFromElements(creature.world.elementsAtPosition(pos), creatures))
                 return true;
@@ -34,7 +47,7 @@ class Dash extends DirectionAction {
     public override function use() {
         var pos = creature.position, moveToPos = creature.position;
         var attacked = false;
-        for (i in 0...4) {
+        for (i in 0...dashSize) {
             pos = creature.world.positionInDirection(pos, direction);
             var elems = creature.world.elementsAtPosition(pos);
             for (elem in elems) {
@@ -43,9 +56,9 @@ class Dash extends DirectionAction {
                     var result = AttackCalculator.basicAttack(creature, creatureHere);
                     if (creature.isInterestingForPlayer() || creatureHere.isInterestingForPlayer()) {
                         var text = switch (result) {
-                            case Critical(damage): '${creature.getNameToUse()} dashed into ${creatureHere.getNameToUse()}. It\'s a critical hit for $damage damage!'.firstToUpper();
-                            case Damage(damage): '${creature.getNameToUse()} dashed into ${creatureHere.getNameToUse()} for $damage damage.'.firstToUpper();
-                            case Block: '${creature.getNameToUse()} tried to dash into ${creatureHere.getNameToUse()}, but ${creatureHere.getReferenceToUse()} defended ${creatureHere.getReferenceToUse(true)}.'.firstToUpper();
+                            case Critical(damage): '${creature.getNameToUse()} $verb ${creatureHere.getNameToUse()}. It\'s a critical hit for $damage damage!'.firstToUpper();
+                            case Damage(damage): '${creature.getNameToUse()} $verb ${creatureHere.getNameToUse()} for $damage damage.'.firstToUpper();
+                            case Block: '${creature.getNameToUse()} tried to $fullVerb ${creatureHere.getNameToUse()}, but ${creatureHere.getReferenceToUse()} defended ${creatureHere.getReferenceToUse(true)}.'.firstToUpper();
                         }
                         creature.world.info.addInfo(text);
                     }
@@ -58,7 +71,7 @@ class Dash extends DirectionAction {
 
             if (! creature.world.noBlockingElementsAt(pos, false))
                 break;
-            if (i != 3)
+            if (i != dashSize - 1)
                 moveToPos = pos;
         }
 

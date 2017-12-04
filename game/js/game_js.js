@@ -408,6 +408,9 @@ Game.prototype = {
 		} else {
 			quickInfoText += " " + this.player.controllingBody.stats.getInfo();
 		}
+		if(this.player.ownBody != this.player.controllingBody) {
+			quickInfoText += "; Ctrl: " + this.player.loseMindControlIn;
+		}
 		this.drawer.setQuickInfo(quickInfoText);
 	}
 	,beforeStep: function() {
@@ -959,6 +962,7 @@ Pathfinder.prototype = {
 	,__class__: Pathfinder
 };
 var Player = function(keyboard,world,game) {
+	this.loseMindControlIn = 0;
 	Focusable.call(this,keyboard,world,game);
 	this.ownBody = new worldElements_creatures_Human(world,new common_Point(1,1));
 	this.ownBody.movement.autoMove = false;
@@ -982,20 +986,22 @@ Player.prototype = $extend(Focusable.prototype,{
 			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
 			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
-			this.ownBody.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this.ownBody,1.5,"{attacker} pushed a magical blast of air at {target}. It's a critical hit for {damage} damage.","{attacker} pushed a magical blast of air at {target} for {damage} damage.","{attacker} pushed a magical blast of air at {target}, {butDefended}","Air Blast","Push a powerful blast of air at an enemy. There can be a square between you and the enemy.",3,2));
+			this.ownBody.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this.ownBody,1.5,"{attacker} pushed a magical blast of air at {target}. It was a critical hit for {damage} damage.","{attacker} pushed a magical blast of air at {target} for {damage} damage.","{attacker} pushed a magical blast of air at {target}, {butDefended}","Air Blast","Push a powerful blast of air at an enemy. There can be a square between you and the enemy.",3,2));
 		} else if(floor == 3) {
-			this.world.info.addInfo("Floor complete! You feel healthier and more experienced! You also learnt a new ability: Mind Control!");
-			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
-			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
-			this.ownBody.actions.push(new worldElements_creatures_actions_TakeOverEnemy(this.ownBody));
-		} else if(floor == 4) {
-			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
+			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Mind Control!");
 			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
 			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
+			this.ownBody.actions.push(new worldElements_creatures_actions_TakeOverEnemy(this.ownBody));
+		} else if(floor == 4) {
+			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Magical Healing!");
+			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 4);
+			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 4);
+			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
+			this.ownBody.actions.push(new worldElements_creatures_actions_Heal(this.ownBody,8));
 		} else if(floor == 5) {
 			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger!");
-			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 3);
+			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 5);
 			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 2);
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
 		}
@@ -1073,6 +1079,13 @@ Player.prototype = $extend(Focusable.prototype,{
 		} else if(this.controllingBody.stats.hp <= 0) {
 			this.stopTakeover();
 			this.game.info.addInfo("You found yourself back in your own body.");
+		} else if(this.ownBody != this.controllingBody) {
+			this.loseMindControlIn--;
+			if(this.loseMindControlIn <= 0) {
+				var origControllingBody = this.controllingBody;
+				this.stopTakeover();
+				this.game.info.addInfo("You lost control over " + origControllingBody.getNameToUse() + " and found yourself back in your own body.");
+			}
 		}
 	}
 	,showStatusEffects: function() {
@@ -2456,6 +2469,9 @@ dungeonGeneration_DungeonGenerator.prototype = {
 					this.world.addElement(new worldElements_ItemOnFloor(this.world,this.anyEmptyPositionInRoom(room6,true),[artifact.artifact]));
 					HxOverrides.remove(this.world.remainingArtifacts,artifact);
 				}
+				if(this.floor == 5) {
+					this.world.addElement(new worldElements_creatures_FlyingEye(this.world,this.anyEmptyPositionInRoom(room6)));
+				}
 				break;
 			case 2:
 				this.addMonsters(room6);
@@ -2481,7 +2497,7 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		while(tries < 1000) {
 			var pointX = common_Random.getInt(room.x + (notEdge ? 1 : 0),room.get_x2() - (notEdge ? 1 : 0));
 			var pointY = common_Random.getInt(room.y + (notEdge ? 1 : 0),room.get_y2() - (notEdge ? 1 : 0));
-			if(this.world.noBlockingElementsAt(new common_Point(pointX,pointY))) {
+			if(this.world.noBlockingElementsAt(new common_Point(pointX,pointY),false)) {
 				return new common_Point(pointX,pointY);
 			}
 		}
@@ -2491,13 +2507,25 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		if(extraPoints == null) {
 			extraPoints = 0;
 		}
+		if(this.floor >= 3) {
+			++extraPoints;
+		}
 		var points = 2 + common_Random.getInt(this.floor / 2 | 0,this.floor) + extraPoints;
 		if(this.floor == 1) {
 			points = common_Random.getInt(1,3);
 		}
-		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1},{ type : worldElements_creatures_ManeatingPlant, points : 2},{ type : worldElements_creatures_Skeleton, points : 3},{ type : worldElements_creatures_Vampire, points : 4}];
+		var vampire = { type : worldElements_creatures_Vampire, points : 4};
+		var wolf = { type : worldElements_creatures_Wolf, points : 3};
+		var creatureOptions = [{ type : worldElements_creatures_Goblin, points : 2},{ type : worldElements_creatures_Rat, points : 1},{ type : worldElements_creatures_ManeatingPlant, points : 2},{ type : worldElements_creatures_Skeleton, points : 3},vampire,{ type : worldElements_creatures_FlyingEye, points : 5}];
 		if(this.floor >= 3) {
+			creatureOptions.push(wolf);
 			creatureOptions.push({ type : worldElements_creatures_Butterfly, points : 1});
+		}
+		if(this.floor >= 4) {
+			creatureOptions.push(wolf);
+		}
+		if(this.floor >= 5) {
+			creatureOptions.push(vampire);
 		}
 		var _g = 0;
 		while(_g < 100) {
@@ -3157,7 +3185,7 @@ ui_FinishGame.prototype = $extend(Focusable.prototype,{
 	,draw: function() {
 		this.drawer.clear();
 		var drawY = 2;
-		var title = "Game Complete!";
+		var title = "Game Complete! Great job!";
 		this.drawer.setMultiBackground(0,drawY,title.length,Drawer.colorToInt(Color.DarkGray));
 		this.drawer.drawText(0,drawY,title);
 		++drawY;
@@ -3505,12 +3533,12 @@ worldElements_FountainOfLife.prototype = $extend(worldElements_WorldElement.prot
 			var triggeringCreature = triggeringWorldElement;
 			if(triggeringCreature.isUndead) {
 				if(triggeringCreature.isInterestingForPlayer()) {
-					this.world.info.addInfo("You drink from the fountain and lose 2 HP.");
+					this.world.info.addInfo("You drank from the fountain and lost 2 HP.");
 				}
 				triggeringCreature.stats.hp -= 2;
 			} else {
 				if(triggeringCreature.isInterestingForPlayer()) {
-					this.world.info.addInfo("You drink from the fountain and gain 2 HP.");
+					this.world.info.addInfo("You drank from the fountain and gained 2 HP.");
 				}
 				triggeringCreature.stats.gainHP(2);
 			}
@@ -3984,6 +4012,35 @@ worldElements_creatures_Butterfly.prototype = $extend(worldElements_creatures_Cr
 	}
 	,__class__: worldElements_creatures_Butterfly
 });
+var worldElements_creatures_FlyingEye = function(world,position) {
+	worldElements_creatures_Creature.call(this,world,position);
+};
+worldElements_creatures_FlyingEye.__name__ = true;
+worldElements_creatures_FlyingEye.__super__ = worldElements_creatures_Creature;
+worldElements_creatures_FlyingEye.prototype = $extend(worldElements_creatures_Creature.prototype,{
+	init: function() {
+		var _gthis = this;
+		worldElements_creatures_Creature.prototype.init.call(this);
+		this.color = 16761024;
+		this.character = "e";
+		this.creatureTypeName = "flying eye";
+		this.stats.setMaxHP(16);
+		this.stats.setMaxAP(10);
+		this.stats.setAttack(4);
+		this.stats.setSpeed(100);
+		var text = "{attacker} looked deep into {target} for weaknesses, making {attackerReference} stronger.".length == 0 ? "{attacker} looked deep into {target} for weaknesses, making {attackerReference} stronger." : "{attacker} looked deep into {target} for weaknesses, making {attackerReference} stronger.".charAt(0).toUpperCase() + HxOverrides.substr("{attacker} looked deep into {target} for weaknesses, making {attackerReference} stronger.",1,null);
+		this.actions.push(new worldElements_creatures_actions_SpecialDirectionalAttack(this,0.0,"",text,text,"Look for Weakness","Look deep into an enemy for weaknesses. This increases your attack by 1.",10,true,function(dmg) {
+			_gthis.stats.setAttack(_gthis.stats.attack + 1);
+		}));
+		this.creatureAttackVerb = "hit";
+		this.creatureFullAttackVerb = "hit";
+		this.aggressiveToPlayerIfNear = true;
+		this.aggressiveNearDistance = 100;
+		this.followTimeWithoutSee = 10000;
+		this.isUndead = false;
+	}
+	,__class__: worldElements_creatures_FlyingEye
+});
 var worldElements_creatures_Goblin = function(world,position) {
 	worldElements_creatures_Creature.call(this,world,position);
 };
@@ -4088,7 +4145,7 @@ worldElements_creatures_Skeleton.prototype = $extend(worldElements_creatures_Cre
 		this.stats.setMaxAP(5);
 		this.stats.setAttack(5);
 		this.stats.setSpeed(50);
-		this.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this,0.6,"{attacker} threw a bone at {target}. It's a critical hit for {damage} damage.","{attacker} threw a bone at {target} for {damage} damage.","{attacker} threw a bone at {target}, {butDefended}","Throw Bone","Throw a bone in a direction, dealing damage from up to five squares away from an enemy.",2,5));
+		this.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this,0.6,"{attacker} threw a bone at {target}. It was a critical hit for {damage} damage.","{attacker} threw a bone at {target} for {damage} damage.","{attacker} threw a bone at {target}, {butDefended}","Throw Bone","Throw a bone in a direction, dealing damage from up to five squares away from an enemy.",2,5));
 		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_Slowed,function(c) {
 			return new worldElements_creatures_statusEffects_Slowed(c);
 		},"{subject} slowed {object} with its deadly breath!",3,"Breathe Death","Slow an enemy next to you."));
@@ -4113,12 +4170,12 @@ worldElements_creatures_Vampire.prototype = $extend(worldElements_creatures_Crea
 		this.color = 16711680;
 		this.character = "v";
 		this.creatureTypeName = "vampire";
-		this.stats.setMaxHP(20);
+		this.stats.setMaxHP(15);
 		this.stats.setMaxAP(9);
 		this.stats.setAPRegen(5);
-		this.stats.setAttack(8);
+		this.stats.setAttack(6);
 		this.stats.setSpeed(125);
-		this.actions.push(new worldElements_creatures_actions_SpecialDirectionalAttack(this,0.7,"","{attacker} drunk blood from {target} for {damage} damage, healing {attackerReference} for that amount.","{attacker} tried to drink blood from {target}, {butDefended}","Drink Blood","Drink blood from an enemy, healing you for the damage done.",4,true,function(dmg) {
+		this.actions.push(new worldElements_creatures_actions_SpecialDirectionalAttack(this,0.7,"","{attacker} drunk blood from {target} for {damage} damage, healing {attackerReference} by that amount.","{attacker} tried to drink blood from {target}, {butDefended}","Drink Blood","Drink blood from an enemy, healing you for the damage done.",5,true,function(dmg) {
 			_gthis.stats.gainHP(dmg);
 		}));
 		this.creatureAttackVerb = "bit";
@@ -4126,9 +4183,34 @@ worldElements_creatures_Vampire.prototype = $extend(worldElements_creatures_Crea
 		this.aggressiveToPlayerIfNear = true;
 		this.aggressiveNearDistance = 10;
 		this.initAsHumanoid();
+		this.followTimeWithoutSee = 10;
 		this.isUndead = true;
 	}
 	,__class__: worldElements_creatures_Vampire
+});
+var worldElements_creatures_Wolf = function(world,position) {
+	worldElements_creatures_Creature.call(this,world,position);
+};
+worldElements_creatures_Wolf.__name__ = true;
+worldElements_creatures_Wolf.__super__ = worldElements_creatures_Creature;
+worldElements_creatures_Wolf.prototype = $extend(worldElements_creatures_Creature.prototype,{
+	init: function() {
+		worldElements_creatures_Creature.prototype.init.call(this);
+		this.color = 11249571;
+		this.character = "w";
+		this.creatureTypeName = "wolf";
+		this.stats.setMaxHP(10);
+		this.stats.setMaxAP(6);
+		this.stats.setAttack(6);
+		this.stats.setSpeed(100);
+		this.actions.push(new worldElements_creatures_actions_Dash(this,true));
+		this.creatureAttackVerb = "bit";
+		this.creatureFullAttackVerb = "bite";
+		this.aggressiveToPlayerIfNear = true;
+		this.aggressiveNearDistance = 5;
+		this.followTimeWithoutSee = 5;
+	}
+	,__class__: worldElements_creatures_Wolf
 });
 var worldElements_creatures_actions_CreatureAction = function(creature) {
 	this.abilityDescription = "";
@@ -4315,16 +4397,31 @@ worldElements_creatures_actions_AttackCalculator.attackStandardResults = functio
 		attackedCreature.attackedBy.push(attackingCreature);
 	}
 };
-var worldElements_creatures_actions_Dash = function(creature) {
+var worldElements_creatures_actions_Dash = function(creature,isLeap) {
+	if(isLeap == null) {
+		isLeap = false;
+	}
+	this.ap = 2;
+	this.dashSize = 4;
+	this.fullVerb = "dash into";
+	this.verb = "dash into";
 	worldElements_creatures_actions_DirectionAction.call(this,creature);
-	this.abilityName = "Dash";
-	this.abilityDescription = "Move up to three spaces in one direction. If you hit an enemy, attack it.";
+	if(isLeap) {
+		this.abilityName = "Wolf Leap";
+		this.abilityDescription = "Move up to two spaces in one direction. If you hit an enemy, attack it.";
+		this.verb = "leaped onto";
+		this.fullVerb = "leaped onto";
+		this.dashSize = 3;
+	} else {
+		this.abilityName = "Dash";
+		this.abilityDescription = "Move up to three spaces in one direction. If you hit an enemy, attack it.";
+	}
 };
 worldElements_creatures_actions_Dash.__name__ = true;
 worldElements_creatures_actions_Dash.__super__ = worldElements_creatures_actions_DirectionAction;
 worldElements_creatures_actions_Dash.prototype = $extend(worldElements_creatures_actions_DirectionAction.prototype,{
 	get_actionPoints: function() {
-		return 2;
+		return this.ap;
 	}
 	,canUse: function() {
 		return this.creature.world.noBlockingElementsAt(this.creature.world.positionInDirection(this.creature.position,this.direction),false);
@@ -4337,9 +4434,10 @@ worldElements_creatures_actions_Dash.prototype = $extend(worldElements_creatures
 			return false;
 		}
 		var pos = this.creature.position;
-		var _g = 0;
-		while(_g < 4) {
-			var i = _g++;
+		var _g1 = 0;
+		var _g = this.dashSize;
+		while(_g1 < _g) {
+			var i = _g1++;
 			pos = this.creature.world.positionInDirection(pos,this.direction);
 			if(this.canUseOnAnyCreatureFromElements(this.creature.world.elementsAtPosition(pos),creatures)) {
 				return true;
@@ -4354,15 +4452,16 @@ worldElements_creatures_actions_Dash.prototype = $extend(worldElements_creatures
 		var pos = this.creature.position;
 		var moveToPos = this.creature.position;
 		var attacked = false;
-		var _g = 0;
-		while(_g < 4) {
-			var i = _g++;
+		var _g1 = 0;
+		var _g = this.dashSize;
+		while(_g1 < _g) {
+			var i = _g1++;
 			pos = this.creature.world.positionInDirection(pos,this.direction);
 			var elems = this.creature.world.elementsAtPosition(pos);
-			var _g1 = 0;
-			while(_g1 < elems.length) {
-				var elem = elems[_g1];
-				++_g1;
+			var _g2 = 0;
+			while(_g2 < elems.length) {
+				var elem = elems[_g2];
+				++_g2;
 				if(js_Boot.__instanceof(elem,worldElements_creatures_Creature)) {
 					var creatureHere = elem;
 					var result = worldElements_creatures_actions_AttackCalculator.basicAttack(this.creature,creatureHere);
@@ -4371,7 +4470,7 @@ worldElements_creatures_actions_Dash.prototype = $extend(worldElements_creatures
 						switch(result[1]) {
 						case 0:
 							var damage = result[2];
-							var str = "" + this.creature.getNameToUse() + " dashed into " + creatureHere.getNameToUse() + " for " + damage + " damage.";
+							var str = "" + this.creature.getNameToUse() + " " + this.verb + " " + creatureHere.getNameToUse() + " for " + damage + " damage.";
 							if(str.length == 0) {
 								text = str;
 							} else {
@@ -4380,7 +4479,7 @@ worldElements_creatures_actions_Dash.prototype = $extend(worldElements_creatures
 							break;
 						case 1:
 							var damage1 = result[2];
-							var str1 = "" + this.creature.getNameToUse() + " dashed into " + creatureHere.getNameToUse() + ". It's a critical hit for " + damage1 + " damage!";
+							var str1 = "" + this.creature.getNameToUse() + " " + this.verb + " " + creatureHere.getNameToUse() + ". It's a critical hit for " + damage1 + " damage!";
 							if(str1.length == 0) {
 								text = str1;
 							} else {
@@ -4388,7 +4487,7 @@ worldElements_creatures_actions_Dash.prototype = $extend(worldElements_creatures
 							}
 							break;
 						case 2:
-							var str2 = "" + this.creature.getNameToUse() + " tried to dash into " + creatureHere.getNameToUse() + ", but " + creatureHere.getReferenceToUse() + " defended " + creatureHere.getReferenceToUse(true) + ".";
+							var str2 = "" + this.creature.getNameToUse() + " tried to " + this.fullVerb + " " + creatureHere.getNameToUse() + ", but " + creatureHere.getReferenceToUse() + " defended " + creatureHere.getReferenceToUse(true) + ".";
 							if(str2.length == 0) {
 								text = str2;
 							} else {
@@ -4408,7 +4507,7 @@ worldElements_creatures_actions_Dash.prototype = $extend(worldElements_creatures
 			if(!this.creature.world.noBlockingElementsAt(pos,false)) {
 				break;
 			}
-			if(i != 3) {
+			if(i != this.dashSize - 1) {
 				moveToPos = pos;
 			}
 		}
@@ -4463,12 +4562,37 @@ worldElements_creatures_actions_DirectionalAttack.prototype = $extend(worldEleme
 	}
 	,__class__: worldElements_creatures_actions_DirectionalAttack
 });
+var worldElements_creatures_actions_Heal = function(creature,amount) {
+	worldElements_creatures_actions_CreatureAction.call(this,creature);
+	this.abilityName = "Magical Healing";
+	this.abilityDescription = "Heal " + amount + " HP.";
+	this.amount = amount;
+};
+worldElements_creatures_actions_Heal.__name__ = true;
+worldElements_creatures_actions_Heal.__super__ = worldElements_creatures_actions_CreatureAction;
+worldElements_creatures_actions_Heal.prototype = $extend(worldElements_creatures_actions_CreatureAction.prototype,{
+	get_actionPoints: function() {
+		return 4;
+	}
+	,canUse: function() {
+		return true;
+	}
+	,'use': function() {
+		if(this.creature.isInterestingForPlayer()) {
+			var tmp = this.creature.world.info;
+			var str = "" + this.creature.getNameToUse() + " magically healed " + this.amount + " HP.";
+			tmp.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
+		}
+		this.creature.stats.gainHP(this.amount);
+	}
+	,__class__: worldElements_creatures_actions_Heal
+});
 var worldElements_creatures_actions_SpecialDirectionalAttack = function(creature,damageMultiplier,criticalText,damageText,blockText,abilityName,abilityDescription,ap,neverCrit,postAttack) {
 	if(neverCrit == null) {
 		neverCrit = false;
 	}
 	worldElements_creatures_actions_DirectionalAttack.call(this,creature);
-	this.damageMultiplier = 1;
+	this.damageMultiplier = damageMultiplier;
 	this.criticalText = criticalText;
 	this.damageText = damageText;
 	this.blockText = blockText;
@@ -4624,9 +4748,10 @@ worldElements_creatures_actions_StopTakeOver.prototype = $extend(worldElements_c
 	,__class__: worldElements_creatures_actions_StopTakeOver
 });
 var worldElements_creatures_actions_TakeOverEnemy = function(creature) {
+	this.turnLength = 11;
 	worldElements_creatures_actions_DirectionAction.call(this,creature);
 	this.abilityName = "Mind Control";
-	this.abilityDescription = "Take over an enemy next to you. Make sure you're at least somewhat safe, as you won't be able to move your own body until you end the mind control.";
+	this.abilityDescription = "Take over an enemy next to you. Make sure you're at least somewhat safe, as you won't be able to move your own body until you end the mind control. Also, you'll always lose mind control after " + (this.turnLength - 1) + " turns.";
 };
 worldElements_creatures_actions_TakeOverEnemy.__name__ = true;
 worldElements_creatures_actions_TakeOverEnemy.__super__ = worldElements_creatures_actions_DirectionAction;
@@ -4641,6 +4766,7 @@ worldElements_creatures_actions_TakeOverEnemy.prototype = $extend(worldElements_
 		var creatureHere = elementHere;
 		this.creature.world.info.addInfo("You started mind controlling " + creatureHere.getNameToUse() + ".");
 		this.creature.world.player.controllingBody = creatureHere;
+		this.creature.world.player.loseMindControlIn = this.turnLength;
 		this.creature.world.player.afterTakeover();
 	}
 	,__class__: worldElements_creatures_actions_TakeOverEnemy

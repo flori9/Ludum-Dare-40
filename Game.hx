@@ -103,6 +103,8 @@ class Game {
             quickInfoText += " You're dead!";
         else
             quickInfoText += " " + player.controllingBody.stats.getInfo();
+        if (player.ownBody != player.controllingBody)
+            quickInfoText += '; Ctrl: ${player.loseMindControlIn}';
         drawer.setQuickInfo(quickInfoText);
     }
 

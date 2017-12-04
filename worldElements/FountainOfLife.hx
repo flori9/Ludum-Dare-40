@@ -31,12 +31,12 @@ class FountainOfLife extends WorldElement {
             var triggeringCreature:Creature = cast triggeringWorldElement;
             if (triggeringCreature.isUndead) {
                 if (triggeringCreature.isInterestingForPlayer()) {
-                    world.info.addInfo("You drink from the fountain and lose 2 HP.");
+                    world.info.addInfo("You drank from the fountain and lost 2 HP.");
                 }
                 triggeringCreature.stats.hp -= 2;
             } else {
                 if (triggeringCreature.isInterestingForPlayer()) {
-                    world.info.addInfo("You drink from the fountain and gain 2 HP.");
+                    world.info.addInfo("You drank from the fountain and gained 2 HP.");
                 }
                 triggeringCreature.stats.gainHP(2);
             }

@@ -25,7 +25,7 @@ class SpecialDirectionalAttack extends DirectionalAttack {
         abilityName:String, abilityDescription:String, ap:Int, neverCrit:Bool = false, ?postAttack:Int->Void) {
         super(creature);
 
-        this.damageMultiplier = 1;
+        this.damageMultiplier = damageMultiplier;
         this.criticalText = criticalText;
         this.damageText = damageText;
         this.blockText = blockText;
