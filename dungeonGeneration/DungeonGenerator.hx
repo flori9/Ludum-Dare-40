@@ -324,7 +324,6 @@ class DungeonGenerator {
                     if (possibleArtifacts.length != 0)
                     {
                         var artifact = Random.fromArray(possibleArtifacts);
-                        trace(artifact);
                         world.addElement(new ItemOnFloor(world, anyEmptyPositionInRoom(room, true), [artifact.artifact]));
                         world.remainingArtifacts.remove(artifact);
                     }

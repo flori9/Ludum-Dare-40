@@ -3,8 +3,8 @@ package worldElements.creatures.actions;
 class Dash extends DirectionAction {
     override function get_actionPoints() return ap;
 
-    public var verb:String = "dash into";
-    public var fullVerb:String = "dash into";
+    public var verb:String = "dashed into";
+    public var fullVerb:String = "dashed into";
     public var dashSize = 4;
     public var ap = 2;
 

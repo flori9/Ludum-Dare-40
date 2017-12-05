@@ -44,10 +44,9 @@ class Player extends Focusable {
             "{attacker} pushed a magical blast of air at {target} for {damage} damage.", "{attacker} pushed a magical blast of air at {target}, {butDefended}", "Air Blast", "Push a powerful blast of air at an enemy. There can be a square between you and the enemy.", 3, 2));
         }
         else if (floor == 3) {
-            world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Mind Control!");
+            world.info.addInfo("Floor complete! You feel healthier and more experienced! You also learnt a new ability: Mind Control!");
             ownBody.stats.setMaxHP(ownBody.stats.maxHP + 4);
             ownBody.stats.setMaxAP(ownBody.stats.maxAP + 3);
-            ownBody.stats.setAttack(ownBody.stats.attack + 1);
             ownBody.actions.push(new TakeOverEnemy(ownBody));
         }
         else if (floor == 4) {

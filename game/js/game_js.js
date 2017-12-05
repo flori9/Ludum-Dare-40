@@ -991,10 +991,9 @@ Player.prototype = $extend(Focusable.prototype,{
 			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
 			this.ownBody.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this.ownBody,1.5,"{attacker} pushed a magical blast of air at {target}. It was a critical hit for {damage} damage.","{attacker} pushed a magical blast of air at {target} for {damage} damage.","{attacker} pushed a magical blast of air at {target}, {butDefended}","Air Blast","Push a powerful blast of air at an enemy. There can be a square between you and the enemy.",3,2));
 		} else if(floor == 3) {
-			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Mind Control!");
+			this.world.info.addInfo("Floor complete! You feel healthier and more experienced! You also learnt a new ability: Mind Control!");
 			this.ownBody.stats.setMaxHP(this.ownBody.stats.maxHP + 4);
 			this.ownBody.stats.setMaxAP(this.ownBody.stats.maxAP + 3);
-			this.ownBody.stats.setAttack(this.ownBody.stats.attack + 1);
 			this.ownBody.actions.push(new worldElements_creatures_actions_TakeOverEnemy(this.ownBody));
 		} else if(floor == 4) {
 			this.world.info.addInfo("Floor complete! You feel healthier, more experienced and stronger! You also learnt a new ability: Magical Healing!");
@@ -2468,7 +2467,6 @@ dungeonGeneration_DungeonGenerator.prototype = {
 				});
 				if(possibleArtifacts.length != 0) {
 					var artifact = common_Random.fromArray(possibleArtifacts);
-					console.log(artifact);
 					this.world.addElement(new worldElements_ItemOnFloor(this.world,this.anyEmptyPositionInRoom(room6,true),[artifact.artifact]));
 					HxOverrides.remove(this.world.remainingArtifacts,artifact);
 				}
@@ -3255,7 +3253,7 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 		this.drawCurrentLines(this.game.drawer);
 	}
 	,processInfo: function(drawer) {
-		var addToLast = "...";
+		var addToLast = " [more...]";
 		var lines = drawer.splitIntoLines(0,0,this.info,null,null,function(orig,ln) {
 			if(ln % 2 == 1) {
 				return orig - addToLast.length;
@@ -3269,10 +3267,7 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 			while(_g1 < _g) {
 				var i = _g1++;
 				if(i % 2 == 1) {
-					if(lines[i].charAt(lines[i].length - 1) != ".") {
-						lines[i] += ".";
-					}
-					lines[i] += "..";
+					lines[i] += addToLast;
 				}
 			}
 			this.game.focus(this);
@@ -4032,7 +4027,7 @@ worldElements_creatures_FlyingEye.prototype = $extend(worldElements_creatures_Cr
 		this.creatureTypeName = "flying eye";
 		this.stats.setMaxHP(16);
 		this.stats.setMaxAP(10);
-		this.stats.setAttack(4);
+		this.stats.setAttack(5);
 		this.stats.setSpeed(100);
 		var text = "{attacker} looked deep into {target} for weaknesses, making {attackerReference} stronger.".length == 0 ? "{attacker} looked deep into {target} for weaknesses, making {attackerReference} stronger." : "{attacker} looked deep into {target} for weaknesses, making {attackerReference} stronger.".charAt(0).toUpperCase() + HxOverrides.substr("{attacker} looked deep into {target} for weaknesses, making {attackerReference} stronger.",1,null);
 		this.actions.push(new worldElements_creatures_actions_SpecialDirectionalAttack(this,0.0,"",text,text,"Look for Weakness","Look deep into an enemy for weaknesses. This increases your attack by 1.",10,true,function(dmg) {
@@ -4147,7 +4142,7 @@ worldElements_creatures_Skeleton.prototype = $extend(worldElements_creatures_Cre
 		this.color = 13684944;
 		this.character = "s";
 		this.creatureTypeName = "skeleton";
-		this.stats.setMaxHP(10);
+		this.stats.setMaxHP(12);
 		this.stats.setMaxAP(5);
 		this.stats.setAttack(5);
 		this.stats.setSpeed(50);
@@ -4176,12 +4171,12 @@ worldElements_creatures_Vampire.prototype = $extend(worldElements_creatures_Crea
 		this.color = 16711680;
 		this.character = "v";
 		this.creatureTypeName = "vampire";
-		this.stats.setMaxHP(15);
+		this.stats.setMaxHP(18);
 		this.stats.setMaxAP(9);
 		this.stats.setAPRegen(5);
-		this.stats.setAttack(6);
+		this.stats.setAttack(5);
 		this.stats.setSpeed(125);
-		this.actions.push(new worldElements_creatures_actions_SpecialDirectionalAttack(this,0.7,"","{attacker} drunk blood from {target} for {damage} damage, healing {attackerReference} by that amount.","{attacker} tried to drink blood from {target}, {butDefended}","Drink Blood","Drink blood from an enemy, healing you for the damage done.",5,true,function(dmg) {
+		this.actions.push(new worldElements_creatures_actions_SpecialDirectionalAttack(this,0.7,"","{attacker} drank blood from {target} for {damage} damage, healing {attackerReference} by that amount.","{attacker} tried to drink blood from {target}, {butDefended}","Drink Blood","Drink blood from an enemy, healing you for the damage done.",5,true,function(dmg) {
 			_gthis.stats.gainHP(dmg);
 		}));
 		this.creatureAttackVerb = "bit";
@@ -4205,9 +4200,9 @@ worldElements_creatures_Wolf.prototype = $extend(worldElements_creatures_Creatur
 		this.color = 11249571;
 		this.character = "w";
 		this.creatureTypeName = "wolf";
-		this.stats.setMaxHP(10);
+		this.stats.setMaxHP(15);
 		this.stats.setMaxAP(6);
-		this.stats.setAttack(6);
+		this.stats.setAttack(4);
 		this.stats.setSpeed(100);
 		this.actions.push(new worldElements_creatures_actions_Dash(this,true));
 		this.creatureAttackVerb = "bit";
@@ -4409,8 +4404,8 @@ var worldElements_creatures_actions_Dash = function(creature,isLeap) {
 	}
 	this.ap = 2;
 	this.dashSize = 4;
-	this.fullVerb = "dash into";
-	this.verb = "dash into";
+	this.fullVerb = "dashed into";
+	this.verb = "dashed into";
 	worldElements_creatures_actions_DirectionAction.call(this,creature);
 	if(isLeap) {
 		this.abilityName = "Wolf Leap";

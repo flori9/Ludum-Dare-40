@@ -11,7 +11,7 @@ class FlyingEye extends Creature {
         creatureTypeName = "flying eye";
         stats.setMaxHP(16);
         stats.setMaxAP(10);
-        stats.setAttack(4);
+        stats.setAttack(5);
         stats.setSpeed(100);
         var text = "{attacker} looked deep into {target} for weaknesses, making {attackerReference} stronger.".firstToUpper();
         actions.push(new worldElements.creatures.actions.SpecialDirectionalAttack(this, 0.0, "",

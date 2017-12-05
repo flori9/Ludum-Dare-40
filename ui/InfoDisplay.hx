@@ -31,15 +31,16 @@ class InfoDisplay extends Focusable {
      *  Show info, possibly taking focus
      */
     public function processInfo(drawer:Drawer) {
-        var addToLast = "...";
+        var addToLast = " [more...]";
 
         var lines = drawer.splitIntoLines(0, 0, info, function(orig, ln) return ln % 2 == 1 ? orig - addToLast.length : orig);
         if (lines.length > 2) {
             for (i in 0...lines.length - 1) {
                 if (i % 2 == 1) {
-                    if (lines[i].charAt(lines[i].length - 1) != ".")
-                        lines[i] += ".";
-                    lines[i] += "..";
+                    // if (lines[i].charAt(lines[i].length - 1) != ".")
+                    //     lines[i] += ".";
+                    // lines[i] += "..";
+                    lines[i] += addToLast;
                 }
             }
 
