@@ -53,7 +53,7 @@ class InfoDisplay extends Focusable {
     }
 
     public override function update() {
-        if (keyboard.anyConfirm() || keyboard.anyBack()) {
+        if (keyboard.anyKey()) {
             currentLine += 2;
 
             if (currentLine >= currentLines.length - 2) {

@@ -14,6 +14,14 @@ class Keyboard {
     public static inline var escape = 27;
     public static inline var backspace = 8;
 
+    public function anyKey() {
+        for (k in 0...keys) {
+            if (pressed[k])
+                return true;
+        }
+        return false;
+    }
+
     public function anyConfirm() {
         return pressed[space] || pressed[enter];
     }
