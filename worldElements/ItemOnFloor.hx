@@ -31,7 +31,7 @@ class ItemOnFloor extends WorldElement {
     
     public override function getInfo():String {
         if (items.length == 1) {
-            return items[0].aOrAn.firstToUpper() + " " + items[0].name + "."; //curseThing
+            return items[0].aOrAnOrThe.firstToUpper() + " " + items[0].name + "."; //curseThing
         } else {
             return "A pile of items.";
         }

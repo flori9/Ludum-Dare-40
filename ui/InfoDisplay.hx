@@ -31,7 +31,7 @@ class InfoDisplay extends Focusable {
      *  Show info, possibly taking focus
      */
     public function processInfo(drawer:Drawer) {
-        var addToLast = " [more...]";
+        var addToLast = " [more]";
 
         var lines = drawer.splitIntoLines(0, 0, info, function(orig, ln) return ln % 2 == 1 ? orig - addToLast.length : orig);
         if (lines.length > 2) {

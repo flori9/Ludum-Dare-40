@@ -46,6 +46,13 @@ class WorldElement {
     public function init() {
 
     }
+    
+    /**
+     *  An init after initing the dungeon
+     */
+    public function postDungeonInit() {
+        //Nothing by default
+    }
 
     public function preUpdate() {
 

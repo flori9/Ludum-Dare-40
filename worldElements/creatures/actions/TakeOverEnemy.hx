@@ -3,7 +3,7 @@ package worldElements.creatures.actions;
 class TakeOverEnemy extends DirectionAction {
     override function get_actionPoints() return 5;
 
-    var turnLength = 11;
+    var turnLength = 13;
 
     public function new(creature) {
         super(creature);

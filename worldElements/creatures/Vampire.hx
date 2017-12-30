@@ -9,7 +9,7 @@ class Vampire extends Creature {
         color = 0xff0000;
         character = "v";
         creatureTypeName = "vampire";
-        stats.setMaxHP(18);
+        stats.setMaxHP(17);
         stats.setMaxAP(9);
         stats.setAPRegen(5);
         stats.setAttack(5);

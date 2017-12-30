@@ -6,7 +6,7 @@ class Slowed extends StatusEffect {
 
     public override function init() {
         name = "Slowed";
-        goesAwayAfter = 20;
+        goesAwayAfter = 30;
     }
 
     public override function onTurn() {

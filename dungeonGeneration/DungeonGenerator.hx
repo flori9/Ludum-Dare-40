@@ -11,6 +11,7 @@ enum RoomType {
     End;
     None;
     Fountain;
+    Special;
 }
 
 class DungeonGenerator {
@@ -19,6 +20,9 @@ class DungeonGenerator {
     var height:Int;
     var playerBody:Creature;
     var floor:Int;
+
+    static inline var ratKingFloor = 2;
+    static inline var wolfLairFloor = 4;
 
     public function new(world:World, floor:Int = 1) {
         this.world = world;
@@ -267,11 +271,6 @@ class DungeonGenerator {
         var playerRoom = rooms.min(function (r) return r.x);
         roomFunction[playerRoom] = PlayerStart;
 
-        var rightRooms = rooms.filter(function (r) return r.x > width - 14);
-        if (rightRooms.length == 0)
-            rightRooms = [rooms.max(function (r) return r.x)];
-        roomFunction[Random.fromArray(rightRooms)] = End;
-
         function getUnusedRooms() return rooms.filter(function(r) return roomFunction[r] == None);
         function getUnusedRoomsRandomOrder() {
             //Do some wacky shuffle that's good enough
@@ -280,9 +279,22 @@ class DungeonGenerator {
             return unused;
         }
 
+        //Special to the far right
+        if (floor == ratKingFloor) {
+            var ratKingRoom = getUnusedRooms().max(function(r) return r.x);
+            roomFunction[ratKingRoom] = Special;
+        }
+        
+        //End room
+        var rightRooms = getUnusedRooms().filter(function (r) return r.x > width - 14);
+        if (rightRooms.length == 0)
+            rightRooms = [rooms.max(function (r) return r.x)];
+        roomFunction[Random.fromArray(rightRooms)] = End;
+
         //Find a room for treasure and maybe one for fountain, with normally only one entrance
         var roomsStillToFill = getUnusedRoomsRandomOrder();
-        var addedTreasure = false, addedFountainIfNeeded = floor != 3 && floor != 5, maxEntrances = 1;
+        var addedTreasure = false, addedFountainIfNeeded = floor != 3 && floor != 5,
+            addedSpecialIfNeeded = floor != wolfLairFloor, maxEntrances = 1;
         while (! addedTreasure || ! addedFountainIfNeeded) {
             for (room in roomsStillToFill) {
                 var entrances = 0;
@@ -290,19 +302,22 @@ class DungeonGenerator {
                     if (path.room1 == room || path.room2 == room)
                         entrances += 1;
                 }
-                if (entrances <= maxEntrances) {
+                if (roomFunction[room] == None && entrances <= maxEntrances) {
                     if (! addedTreasure) {
                         roomFunction[room] = Treasure;
                         addedTreasure = true;
                     } else if (! addedFountainIfNeeded) {
                         roomFunction[room] = Fountain;
                         addedFountainIfNeeded = true;
+                    } else if (! addedSpecialIfNeeded) {
+                        roomFunction[room] = Special;
+                        addedSpecialIfNeeded = true;
                     }
                 }
             }
             maxEntrances += 1;
         }
-
+        
         //Fill some of the unused rooms with monsters
         var roomsStillToFill = getUnusedRoomsRandomOrder();
         for (i in 0...roomsStillToFill.length - 2)
@@ -313,9 +328,39 @@ class DungeonGenerator {
                 case PlayerStart:
                     playerBody.position = new Point(room.centerX, room.centerY);
                     world.addElement(playerBody);
+                    
+                    if (floor == 1)
+                        world.addElement(new Sign(world, anyEmptyPositionInRoom(room, true), "Move into monsters to attack them. Press Shift to use abilities."));
+                    else if (floor == 2)
+                        world.addElement(new Sign(world, anyEmptyPositionInRoom(room, true), "Press . (Dot) to wait a turn, I to view your inventory and E for your status effects."));
                 case Monsters:
                     //Add the monster(s)
                     addMonsters(room);
+                case Special:
+                    if (floor == ratKingFloor) {
+                        //The rat throne and the rat king
+                        world.addElement(new ItemOnFloor(world, anyEmptyPositionInRoom(room, true), [new items.artifacts.RatThrone()]));
+                        world.addElement(new RatKing(world, anyEmptyPositionInRoom(room)));
+                        
+                        //Spawn some rats near it, too
+                        for (i in 0...3) {
+                            var rat = new Rat(world, anyEmptyPositionInRoom(room));
+                            world.addElement(rat);
+                            rat.basePoint = rat.position;
+                            rat.maxWanderDistance = 5;
+                        }
+                    } else if (floor == wolfLairFloor) {
+                        //The wolf's lair
+                        world.addElement(new ItemOnFloor(world, anyEmptyPositionInRoom(room, true), [ new items.WolfMilk() ]));
+                        
+                        //Spawn some wolfs near it, too
+                        for (i in 0...2) {
+                            var wolf = new Wolf(world, anyEmptyPositionInRoom(room));
+                            world.addElement(wolf);
+                            wolf.basePoint = wolf.position;
+                            wolf.maxWanderDistance = 5;
+                        }
+                    }
                 case End:
                     world.addElement(new Ladder(world, anyEmptyPositionInRoom(room, true)));
                 case Treasure:
@@ -327,20 +372,28 @@ class DungeonGenerator {
                         world.addElement(new ItemOnFloor(world, anyEmptyPositionInRoom(room, true), [artifact.artifact]));
                         world.remainingArtifacts.remove(artifact);
                     }
+                    //Info
+                    if (floor == 1)
+                        world.addElement(new Sign(world, anyEmptyPositionInRoom(room, true), "There are many artifacts in the dungeon. They can make you rich, but they're all cursed, so think well before taking too many!"));
                     //Protecting monsters
                     if (floor == 5)
                         world.addElement(new FlyingEye(world, anyEmptyPositionInRoom(room)));
                 case Fountain:
                     world.addElement(new FountainOfLife(world, anyEmptyPositionInRoom(room, true)));
-                    addMonsters(room, 1);
+                    addMonsters(room, 1, 8);
                 case None:
                     //Nothing in the room
             }
         }
 
+        //Do the postinit for all world elements
+        for (element in world.elements) {
+            element.postDungeonInit();
+        }
+
         return basicDungeon;
     }
-
+    
     function anyEmptyPositionInRoom(room:Rectangle, notEdge = false) {
         var tries = 0;
         while (tries < 1000) {
@@ -352,7 +405,7 @@ class DungeonGenerator {
         return null;
     }
 
-    public function addMonsters(room:Rectangle, extraPoints = 0) {
+    public function addMonsters(room:Rectangle, extraPoints = 0, maxWanderDistance = -1) {
         var points = 2 + Random.getInt(Math.div(floor, 2), floor) + extraPoints;
         if (floor == 1)
             points = Random.getInt(1, 3);
@@ -384,7 +437,12 @@ class DungeonGenerator {
 
             if (points >= creatureOption.points) {
                 var position = anyEmptyPositionInRoom(room);
-                world.addElement(Type.createInstance(creatureOption.type, [world, position]));
+                var monster = Type.createInstance(creatureOption.type, [world, position]);
+                if (maxWanderDistance != -1) {
+                    monster.basePoint = position;
+                    monster.maxWanderDistance = maxWanderDistance;
+                }
+                world.addElement(monster);
                 points -= creatureOption.points;
             }
         }

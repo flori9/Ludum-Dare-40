@@ -358,7 +358,18 @@ var Game = function(application,stage,gameRect) {
 	this.info = new ui_InfoDisplay(this.keyboard,this.world,this,this.player);
 	this.world.info = this.info;
 	this.world.generateLevel();
+	var skips = 0;
+	var _g1 = 0;
+	var _g = skips;
+	while(_g1 < _g) {
+		var i = _g1++;
+		this.world.nextFloor();
+	}
 	this.drawWorld();
+	if(skips == 0) {
+		this.info.addInfo("Welcome to the dungeon! Use the arrow keys to move and the mouse to examine things.");
+		this.info.processInfo(this.drawer);
+	}
 };
 Game.__name__ = true;
 Game.prototype = {
@@ -517,7 +528,17 @@ Keyboard.getLetterCode = function(letter) {
 	return code;
 };
 Keyboard.prototype = {
-	anyConfirm: function() {
+	anyKey: function() {
+		var _g = 0;
+		while(_g < 256) {
+			var k = _g++;
+			if(this.pressed[k]) {
+				return true;
+			}
+		}
+		return false;
+	}
+	,anyConfirm: function() {
 		if(!this.pressed[32]) {
 			return this.pressed[13];
 		} else {
@@ -572,6 +593,13 @@ Keyboard.prototype = {
 };
 var Lambda = function() { };
 Lambda.__name__ = true;
+Lambda.iter = function(it,f) {
+	var x = $iterator(it)();
+	while(x.hasNext()) {
+		var x1 = x.next();
+		f(x1);
+	}
+};
 Lambda.find = function(it,f) {
 	var v = $iterator(it)();
 	while(v.hasNext()) {
@@ -755,16 +783,13 @@ Pathfinder.prototype = {
 		}
 		var visited = _g;
 		var queue = new de_polygonal_ds_ArrayedQueue();
-		var firstDirection = new haxe_ds_ObjectMap();
-		var totalDistance = new haxe_ds_ObjectMap();
 		var foundPositions = [];
+		var from = new PathfindingPoint(fromPosition);
 		if(queue.capacity == queue.mSize) {
 			queue.grow();
 		}
-		queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = fromPosition;
+		queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = from;
 		visited[fromPosition.x][fromPosition.y] = true;
-		firstDirection.set(fromPosition,null);
-		totalDistance.set(fromPosition,0);
 		while(queue.mSize != 0) {
 			if(true != queue.mSize > 0) {
 				throw new js__$Boot_HaxeError(new de_polygonal_ds_tools_AssertError("queue is empty" + " (size > 0)",{ fileName : "ArrayedQueue.hx", lineNumber : 166, className : "de.polygonal.ds.ArrayedQueue", methodName : "dequeue"}));
@@ -775,60 +800,52 @@ Pathfinder.prototype = {
 			}
 			queue.mSize--;
 			var queueItem = x;
-			var firstDir = firstDirection.h[queueItem.__id__];
-			var thisDistance = totalDistance.h[queueItem.__id__];
-			if(queueItem != fromPosition && isGoal(queueItem)) {
-				foundPositions.push({ point : queueItem, inDirection : firstDir, distance : thisDistance});
+			var firstDir = queueItem.direction;
+			var thisDistance = queueItem.totalDistance;
+			if(queueItem != from && isGoal(queueItem.point)) {
+				foundPositions.push({ point : queueItem.point, inDirection : firstDir, distance : thisDistance});
 				if(!all) {
 					break;
 				}
 			}
-			if(queueItem == fromPosition || !common_ArrayExtensions.any(this.world.elementsAtPosition(queueItem),function(elem) {
+			if(queueItem == from || !common_ArrayExtensions.any(this.world.elementsAtPosition(queueItem.point),function(elem) {
 				return elem.get_isBlocking();
 			})) {
-				if(queueItem.x > 0 && !visited[queueItem.x - 1][queueItem.y]) {
-					visited[queueItem.x - 1][queueItem.y] = true;
-					var newPoint = new common_Point(queueItem.x - 1,queueItem.y);
-					var v = firstDir == null ? common_Direction.Left : firstDir;
-					firstDirection.set(newPoint,v);
-					var v1 = thisDistance + 1;
-					totalDistance.set(newPoint,v1);
+				if(queueItem.get_x() > 0 && !visited[queueItem.get_x() - 1][queueItem.get_y()]) {
+					visited[queueItem.get_x() - 1][queueItem.get_y()] = true;
+					var newPoint = new PathfindingPoint(new common_Point(queueItem.get_x() - 1,queueItem.get_y()));
+					newPoint.direction = firstDir == null ? common_Direction.Left : firstDir;
+					newPoint.totalDistance = thisDistance + 1;
 					if(queue.capacity == queue.mSize) {
 						queue.grow();
 					}
 					queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = newPoint;
 				}
-				if(queueItem.y > 0 && !visited[queueItem.x][queueItem.y - 1]) {
-					visited[queueItem.x][queueItem.y - 1] = true;
-					var newPoint1 = new common_Point(queueItem.x,queueItem.y - 1);
-					var v2 = firstDir == null ? common_Direction.Up : firstDir;
-					firstDirection.set(newPoint1,v2);
-					var v3 = thisDistance + 1;
-					totalDistance.set(newPoint1,v3);
+				if(queueItem.get_y() > 0 && !visited[queueItem.get_x()][queueItem.get_y() - 1]) {
+					visited[queueItem.get_x()][queueItem.get_y() - 1] = true;
+					var newPoint1 = new PathfindingPoint(new common_Point(queueItem.get_x(),queueItem.get_y() - 1));
+					newPoint1.direction = firstDir == null ? common_Direction.Up : firstDir;
+					newPoint1.totalDistance = thisDistance + 1;
 					if(queue.capacity == queue.mSize) {
 						queue.grow();
 					}
 					queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = newPoint1;
 				}
-				if(queueItem.x < this.world.width - 1 && !visited[queueItem.x + 1][queueItem.y]) {
-					visited[queueItem.x + 1][queueItem.y] = true;
-					var newPoint2 = new common_Point(queueItem.x + 1,queueItem.y);
-					var v4 = firstDir == null ? common_Direction.Right : firstDir;
-					firstDirection.set(newPoint2,v4);
-					var v5 = thisDistance + 1;
-					totalDistance.set(newPoint2,v5);
+				if(queueItem.get_x() < this.world.width - 1 && !visited[queueItem.get_x() + 1][queueItem.get_y()]) {
+					visited[queueItem.get_x() + 1][queueItem.get_y()] = true;
+					var newPoint2 = new PathfindingPoint(new common_Point(queueItem.get_x() + 1,queueItem.get_y()));
+					newPoint2.direction = firstDir == null ? common_Direction.Right : firstDir;
+					newPoint2.totalDistance = thisDistance + 1;
 					if(queue.capacity == queue.mSize) {
 						queue.grow();
 					}
 					queue.mData[(queue.mSize++ + queue.mFront) % queue.capacity] = newPoint2;
 				}
-				if(queueItem.y < this.world.height - 1 && !visited[queueItem.x][queueItem.y + 1]) {
-					visited[queueItem.x][queueItem.y + 1] = true;
-					var newPoint3 = new common_Point(queueItem.x,queueItem.y + 1);
-					var v6 = firstDir == null ? common_Direction.Down : firstDir;
-					firstDirection.set(newPoint3,v6);
-					var v7 = thisDistance + 1;
-					totalDistance.set(newPoint3,v7);
+				if(queueItem.get_y() < this.world.height - 1 && !visited[queueItem.get_x()][queueItem.get_y() + 1]) {
+					visited[queueItem.get_x()][queueItem.get_y() + 1] = true;
+					var newPoint3 = new PathfindingPoint(new common_Point(queueItem.get_x(),queueItem.get_y() + 1));
+					newPoint3.direction = firstDir == null ? common_Direction.Down : firstDir;
+					newPoint3.totalDistance = thisDistance + 1;
 					if(queue.capacity == queue.mSize) {
 						queue.grow();
 					}
@@ -963,6 +980,21 @@ Pathfinder.prototype = {
 		return true;
 	}
 	,__class__: Pathfinder
+};
+var PathfindingPoint = function(point) {
+	this.totalDistance = 0;
+	this.direction = null;
+	this.point = point;
+};
+PathfindingPoint.__name__ = true;
+PathfindingPoint.prototype = {
+	get_x: function() {
+		return this.point.x;
+	}
+	,get_y: function() {
+		return this.point.y;
+	}
+	,__class__: PathfindingPoint
 };
 var Player = function(keyboard,world,game) {
 	this.loseMindControlIn = 0;
@@ -1109,14 +1141,27 @@ Player.prototype = $extend(Focusable.prototype,{
 		this.game.focus(menu);
 	}
 	,showInventory: function() {
+		var _gthis = this;
 		var _g = [];
 		var _g1 = 0;
 		var _g2 = this.controllingBody.inventory;
 		while(_g1 < _g2.length) {
-			var item = _g2[_g1];
+			var item = [_g2[_g1]];
 			++_g1;
-			_g.push(new ui_MenuItem(item.get_name(),item.get_description(),function() {
-			}));
+			_g.push(new ui_MenuItem(item[0].get_name(),item[0].get_description(),(function(item1) {
+				return function() {
+					if(item1[0].get_useable()) {
+						_gthis.game.focus(_gthis,false);
+						_gthis.game.beforeStep();
+						item1[0]["use"](_gthis.controllingBody);
+						_gthis.controllingBody.hasMoved = true;
+						_gthis.game.afterStep();
+						if(item1[0].get_consumable()) {
+							HxOverrides.remove(_gthis.controllingBody.inventory,item1[0]);
+						}
+					}
+				};
+			})(item)));
 		}
 		var inventoryMenuItems = _g;
 		var menu;
@@ -1989,7 +2034,7 @@ de_polygonal_ds_tools_NativeArrayTools.blit = function(src,srcPos,dst,dstPos,n) 
 		}
 	}
 };
-var dungeonGeneration_RoomType = { __ename__ : true, __constructs__ : ["PlayerStart","Treasure","Monsters","End","None","Fountain"] };
+var dungeonGeneration_RoomType = { __ename__ : true, __constructs__ : ["PlayerStart","Treasure","Monsters","End","None","Fountain","Special"] };
 dungeonGeneration_RoomType.PlayerStart = ["PlayerStart",0];
 dungeonGeneration_RoomType.PlayerStart.toString = $estr;
 dungeonGeneration_RoomType.PlayerStart.__enum__ = dungeonGeneration_RoomType;
@@ -2008,6 +2053,9 @@ dungeonGeneration_RoomType.None.__enum__ = dungeonGeneration_RoomType;
 dungeonGeneration_RoomType.Fountain = ["Fountain",5];
 dungeonGeneration_RoomType.Fountain.toString = $estr;
 dungeonGeneration_RoomType.Fountain.__enum__ = dungeonGeneration_RoomType;
+dungeonGeneration_RoomType.Special = ["Special",6];
+dungeonGeneration_RoomType.Special.toString = $estr;
+dungeonGeneration_RoomType.Special.__enum__ = dungeonGeneration_RoomType;
 var dungeonGeneration_DungeonGenerator = function(world,floor) {
 	if(floor == null) {
 		floor = 1;
@@ -2389,20 +2437,9 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		});
 		var v1 = dungeonGeneration_RoomType.PlayerStart;
 		roomFunction.set(playerRoom,v1);
-		var rightRooms = rooms.filter(function(r1) {
-			return r1.x > _gthis.width - 14;
-		});
-		if(rightRooms.length == 0) {
-			rightRooms = [common_ArrayExtensions.max(rooms,function(r2) {
-				return r2.x;
-			})];
-		}
-		var k = common_Random.fromArray(rightRooms);
-		var v2 = dungeonGeneration_RoomType.End;
-		roomFunction.set(k,v2);
 		var getUnusedRooms = function() {
-			return rooms.filter(function(r3) {
-				return roomFunction.h[r3.__id__] == dungeonGeneration_RoomType.None;
+			return rooms.filter(function(r1) {
+				return roomFunction.h[r1.__id__] == dungeonGeneration_RoomType.None;
 			});
 		};
 		var getUnusedRoomsRandomOrder = function() {
@@ -2412,9 +2449,28 @@ dungeonGeneration_DungeonGenerator.prototype = {
 			});
 			return unused;
 		};
+		if(this.floor == 2) {
+			var ratKingRoom = common_ArrayExtensions.max(getUnusedRooms(),function(r2) {
+				return r2.x;
+			});
+			var v2 = dungeonGeneration_RoomType.Special;
+			roomFunction.set(ratKingRoom,v2);
+		}
+		var rightRooms = getUnusedRooms().filter(function(r3) {
+			return r3.x > _gthis.width - 14;
+		});
+		if(rightRooms.length == 0) {
+			rightRooms = [common_ArrayExtensions.max(rooms,function(r4) {
+				return r4.x;
+			})];
+		}
+		var k = common_Random.fromArray(rightRooms);
+		var v3 = dungeonGeneration_RoomType.End;
+		roomFunction.set(k,v3);
 		var roomsStillToFill = getUnusedRoomsRandomOrder();
 		var addedTreasure = false;
 		var addedFountainIfNeeded = this.floor != 3 && this.floor != 5;
+		var addedSpecialIfNeeded = this.floor != 4;
 		var maxEntrances = 1;
 		while(!addedTreasure || !addedFountainIfNeeded) {
 			var _g110 = 0;
@@ -2430,15 +2486,19 @@ dungeonGeneration_DungeonGenerator.prototype = {
 						++entrances;
 					}
 				}
-				if(entrances <= maxEntrances) {
+				if(roomFunction.h[room4.__id__] == dungeonGeneration_RoomType.None && entrances <= maxEntrances) {
 					if(!addedTreasure) {
-						var v3 = dungeonGeneration_RoomType.Treasure;
-						roomFunction.set(room4,v3);
+						var v4 = dungeonGeneration_RoomType.Treasure;
+						roomFunction.set(room4,v4);
 						addedTreasure = true;
 					} else if(!addedFountainIfNeeded) {
-						var v4 = dungeonGeneration_RoomType.Fountain;
-						roomFunction.set(room4,v4);
+						var v5 = dungeonGeneration_RoomType.Fountain;
+						roomFunction.set(room4,v5);
 						addedFountainIfNeeded = true;
+					} else if(!addedSpecialIfNeeded) {
+						var v6 = dungeonGeneration_RoomType.Special;
+						roomFunction.set(room4,v6);
+						addedSpecialIfNeeded = true;
 					}
 				}
 			}
@@ -2449,8 +2509,8 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		var _g111 = roomsStillToFill1.length - 2;
 		while(_g26 < _g111) {
 			var i5 = _g26++;
-			var v5 = dungeonGeneration_RoomType.Monsters;
-			roomFunction.set(roomsStillToFill1[i5],v5);
+			var v7 = dungeonGeneration_RoomType.Monsters;
+			roomFunction.set(roomsStillToFill1[i5],v7);
 		}
 		var room5 = roomFunction.keys();
 		while(room5.hasNext()) {
@@ -2460,6 +2520,11 @@ dungeonGeneration_DungeonGenerator.prototype = {
 			case 0:
 				this.playerBody.set_position(new common_Point(room6.get_centerX(),room6.get_centerY()));
 				this.world.addElement(this.playerBody);
+				if(this.floor == 1) {
+					this.world.addElement(new worldElements_Sign(this.world,this.anyEmptyPositionInRoom(room6,true),"Move into monsters to attack them. Press Shift to use abilities."));
+				} else if(this.floor == 2) {
+					this.world.addElement(new worldElements_Sign(this.world,this.anyEmptyPositionInRoom(room6,true),"Press '.' (Dot) to wait a turn. Press I to view your inventory. Press E to view your status effects."));
+				}
 				break;
 			case 1:
 				var possibleArtifacts = this.world.remainingArtifacts.filter(function(art) {
@@ -2469,6 +2534,9 @@ dungeonGeneration_DungeonGenerator.prototype = {
 					var artifact = common_Random.fromArray(possibleArtifacts);
 					this.world.addElement(new worldElements_ItemOnFloor(this.world,this.anyEmptyPositionInRoom(room6,true),[artifact.artifact]));
 					HxOverrides.remove(this.world.remainingArtifacts,artifact);
+				}
+				if(this.floor == 1) {
+					this.world.addElement(new worldElements_Sign(this.world,this.anyEmptyPositionInRoom(room6,true),"There are many artifacts in the dungeon. They can make you rich, but they're all cursed, so think well before taking too many!"));
 				}
 				if(this.floor == 5) {
 					this.world.addElement(new worldElements_creatures_FlyingEye(this.world,this.anyEmptyPositionInRoom(room6)));
@@ -2484,9 +2552,40 @@ dungeonGeneration_DungeonGenerator.prototype = {
 				break;
 			case 5:
 				this.world.addElement(new worldElements_FountainOfLife(this.world,this.anyEmptyPositionInRoom(room6,true)));
-				this.addMonsters(room6,1);
+				this.addMonsters(room6,1,8);
+				break;
+			case 6:
+				if(this.floor == 2) {
+					this.world.addElement(new worldElements_ItemOnFloor(this.world,this.anyEmptyPositionInRoom(room6,true),[new items_artifacts_RatThrone()]));
+					this.world.addElement(new worldElements_creatures_RatKing(this.world,this.anyEmptyPositionInRoom(room6)));
+					var _g113 = 0;
+					while(_g113 < 3) {
+						var i6 = _g113++;
+						var rat = new worldElements_creatures_Rat(this.world,this.anyEmptyPositionInRoom(room6));
+						this.world.addElement(rat);
+						rat.basePoint = rat.position;
+						rat.maxWanderDistance = 5;
+					}
+				} else if(this.floor == 4) {
+					this.world.addElement(new worldElements_ItemOnFloor(this.world,this.anyEmptyPositionInRoom(room6,true),[new items_WolfMilk()]));
+					var _g114 = 0;
+					while(_g114 < 2) {
+						var i7 = _g114++;
+						var wolf = new worldElements_creatures_Wolf(this.world,this.anyEmptyPositionInRoom(room6));
+						this.world.addElement(wolf);
+						wolf.basePoint = wolf.position;
+						wolf.maxWanderDistance = 5;
+					}
+				}
 				break;
 			}
+		}
+		var _g115 = 0;
+		var _g27 = this.world.elements;
+		while(_g115 < _g27.length) {
+			var element = _g27[_g115];
+			++_g115;
+			element.postDungeonInit();
 		}
 		return basicDungeon;
 	}
@@ -2504,7 +2603,10 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		}
 		return null;
 	}
-	,addMonsters: function(room,extraPoints) {
+	,addMonsters: function(room,extraPoints,maxWanderDistance) {
+		if(maxWanderDistance == null) {
+			maxWanderDistance = -1;
+		}
 		if(extraPoints == null) {
 			extraPoints = 0;
 		}
@@ -2537,7 +2639,12 @@ dungeonGeneration_DungeonGenerator.prototype = {
 			var creatureOption = common_Random.fromArray(creatureOptions);
 			if(points >= creatureOption.points) {
 				var position = this.anyEmptyPositionInRoom(room);
-				this.world.addElement(Type.createInstance(creatureOption.type,[this.world,position]));
+				var monster = Type.createInstance(creatureOption.type,[this.world,position]);
+				if(maxWanderDistance != -1) {
+					monster.basePoint = position;
+					monster.maxWanderDistance = maxWanderDistance;
+				}
+				this.world.addElement(monster);
 				points -= creatureOption.points;
 			}
 		}
@@ -2773,7 +2880,7 @@ items_Item.prototype = $extend(worldElements_creatures_statusModifiers_StatusMod
 	get_name: function() {
 		return "";
 	}
-	,get_aOrAn: function() {
+	,get_aOrAnOrThe: function() {
 		return "a";
 	}
 	,get_description: function() {
@@ -2782,6 +2889,12 @@ items_Item.prototype = $extend(worldElements_creatures_statusModifiers_StatusMod
 		} else {
 			return "";
 		}
+	}
+	,get_consumable: function() {
+		return false;
+	}
+	,get_useable: function() {
+		return false;
 	}
 	,get_value: function() {
 		return 0;
@@ -2795,9 +2908,51 @@ items_Item.prototype = $extend(worldElements_creatures_statusModifiers_StatusMod
 	,get_modifiersWhileInInventory: function() {
 		return [];
 	}
+	,'use': function(creature) {
+	}
 	,onTake: function(creature) {
 	}
 	,__class__: items_Item
+});
+var items_WolfMilk = function() {
+	items_Item.call(this);
+};
+items_WolfMilk.__name__ = true;
+items_WolfMilk.__super__ = items_Item;
+items_WolfMilk.prototype = $extend(items_Item.prototype,{
+	get_name: function() {
+		return "Milk of a Wolf";
+	}
+	,get_description: function() {
+		return "Drink to fully restore your health. " + items_Item.prototype.get_description.call(this);
+	}
+	,get_value: function() {
+		return 5;
+	}
+	,get_color: function() {
+		return 16185332;
+	}
+	,get_consumable: function() {
+		return true;
+	}
+	,get_useable: function() {
+		return true;
+	}
+	,get_character: function() {
+		return "%";
+	}
+	,get_aOrAnOrThe: function() {
+		return "the";
+	}
+	,'use': function(creature) {
+		if(creature.isInterestingForPlayer()) {
+			var creature1 = creature.world.info;
+			var str = "" + creature.getNameToUse() + " drank the milk of a wolf to restore " + creature.getOwnerReference() + " health.";
+			creature1.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
+		}
+		creature.stats.hp = creature.stats.maxHP;
+	}
+	,__class__: items_WolfMilk
 });
 var items_artifacts_Artifact = function() {
 	items_Item.call(this);
@@ -2875,6 +3030,36 @@ items_artifacts_GobletOfForgetfulness.prototype = $extend(items_artifacts_Artifa
 		return [worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness];
 	}
 	,__class__: items_artifacts_GobletOfForgetfulness
+});
+var items_artifacts_RatThrone = function() {
+	items_artifacts_Artifact.call(this);
+};
+items_artifacts_RatThrone.__name__ = true;
+items_artifacts_RatThrone.__super__ = items_artifacts_Artifact;
+items_artifacts_RatThrone.prototype = $extend(items_artifacts_Artifact.prototype,{
+	get_name: function() {
+		return "Rat Throne";
+	}
+	,get_description: function() {
+		return "A tiny yet beautiful throne. You deal 50% less damage to rats. " + items_artifacts_Artifact.prototype.get_description.call(this);
+	}
+	,get_value: function() {
+		return 300;
+	}
+	,get_color: function() {
+		return 12889416;
+	}
+	,get_modifiersWhileInInventory: function() {
+		return [worldElements_creatures_statusModifiers_SimpleStatusModifier.HalfDamageToRats];
+	}
+	,onTake: function(creature) {
+		Lambda.iter(creature.world.get_creatures().filter(function(c) {
+			return js_Boot.__instanceof(c,worldElements_creatures_RatKing);
+		}),function(ratKing) {
+			ratKing.aggressiveToPlayerIfNear = true;
+		});
+	}
+	,__class__: items_artifacts_RatThrone
 });
 var items_artifacts_UnclearGlasses = function() {
 	items_artifacts_Artifact.call(this);
@@ -3253,7 +3438,7 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 		this.drawCurrentLines(this.game.drawer);
 	}
 	,processInfo: function(drawer) {
-		var addToLast = " [more...]";
+		var addToLast = " [more]";
 		var lines = drawer.splitIntoLines(0,0,this.info,null,null,function(orig,ln) {
 			if(ln % 2 == 1) {
 				return orig - addToLast.length;
@@ -3277,7 +3462,7 @@ ui_InfoDisplay.prototype = $extend(Focusable.prototype,{
 		this.drawCurrentLines(drawer);
 	}
 	,update: function() {
-		if(this.keyboard.anyConfirm() || this.keyboard.anyBack()) {
+		if(this.keyboard.anyKey()) {
 			this.currentLine += 2;
 			if(this.currentLine >= this.currentLines.length - 2) {
 				this.game.focus(this.innerFocusable,false);
@@ -3438,6 +3623,8 @@ worldElements_WorldElement.prototype = {
 	}
 	,init: function() {
 	}
+	,postDungeonInit: function() {
+	}
 	,preUpdate: function() {
 	}
 	,postUpdate: function() {
@@ -3579,7 +3766,7 @@ worldElements_ItemOnFloor.prototype = $extend(worldElements_WorldElement.prototy
 	}
 	,getInfo: function() {
 		if(this.items.length == 1) {
-			var str = this.items[0].get_aOrAn();
+			var str = this.items[0].get_aOrAnOrThe();
 			return (str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null)) + " " + this.items[0].get_name() + ".";
 		} else {
 			return "A pile of items.";
@@ -3701,6 +3888,53 @@ worldElements_PlayerBody.prototype = $extend(worldElements_WorldElement.prototyp
 	}
 	,__class__: worldElements_PlayerBody
 });
+var worldElements_Sign = function(world,position,info) {
+	this.info = info;
+	worldElements_WorldElement.call(this,world,position);
+};
+worldElements_Sign.__name__ = true;
+worldElements_Sign.__super__ = worldElements_WorldElement;
+worldElements_Sign.prototype = $extend(worldElements_WorldElement.prototype,{
+	get_isBlocking: function() {
+		return true;
+	}
+	,get_isViewBlocking: function() {
+		return false;
+	}
+	,get_isStatic: function() {
+		return true;
+	}
+	,get_isEasierVisible: function() {
+		return false;
+	}
+	,init: function() {
+		this.color = 12229235;
+		this.character = "?";
+	}
+	,getInfo: function() {
+		return "A signpost. Move into it to read it.";
+	}
+	,hasActionFor: function(triggeringWorldElement) {
+		if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
+			var triggeringCreature = triggeringWorldElement;
+			if(this.world.player.controllingBody != triggeringCreature) {
+				return this.world.player.ownBody == triggeringCreature;
+			} else {
+				return true;
+			}
+		}
+		return false;
+	}
+	,performActionFor: function(triggeringWorldElement) {
+		if(js_Boot.__instanceof(triggeringWorldElement,worldElements_creatures_Creature)) {
+			var triggeringCreature = triggeringWorldElement;
+			if(this.world.player.ownBody == triggeringCreature || this.world.player.controllingBody == triggeringCreature) {
+				this.world.info.addInfo(this.info);
+			}
+		}
+	}
+	,__class__: worldElements_Sign
+});
 var worldElements_Wall = function(world,position) {
 	worldElements_WorldElement.call(this,world,position);
 };
@@ -3730,6 +3964,8 @@ worldElements_Wall.prototype = $extend(worldElements_WorldElement.prototype,{
 var worldElements_creatures_Creature = function(world,position) {
 	this.isUndead = false;
 	this.canTakeItems = false;
+	this.maxWanderDistance = -1;
+	this.basePoint = null;
 	this.wanderTo = null;
 	this.aggressiveNearDistance = 2;
 	this.aggressiveToPlayerIfNear = false;
@@ -3799,6 +4035,7 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 		this.attackedBy = [];
 		this.inventory = [];
 		this.statusEffects = [];
+		this.leaderCreatures = [];
 	}
 	,initAsHumanoid: function() {
 		this.canTakeItems = true;
@@ -3918,6 +4155,13 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 				if(this.inventory.length != 0) {
 					this.world.addElement(new worldElements_ItemOnFloor(this.world,this.position,this.inventory));
 				}
+			}
+			var _g = 0;
+			var _g1 = this.world.get_creatures();
+			while(_g < _g1.length) {
+				var creature = _g1[_g];
+				++_g;
+				HxOverrides.remove(creature.leaderCreatures,this);
 			}
 			return true;
 		}
@@ -4131,6 +4375,40 @@ worldElements_creatures_Rat.prototype = $extend(worldElements_creatures_Creature
 	}
 	,__class__: worldElements_creatures_Rat
 });
+var worldElements_creatures_RatKing = function(world,position) {
+	worldElements_creatures_Rat.call(this,world,position);
+};
+worldElements_creatures_RatKing.__name__ = true;
+worldElements_creatures_RatKing.__super__ = worldElements_creatures_Rat;
+worldElements_creatures_RatKing.prototype = $extend(worldElements_creatures_Rat.prototype,{
+	init: function() {
+		worldElements_creatures_Rat.prototype.init.call(this);
+		this.color = 13847808;
+		this.character = "r";
+		this.creatureTypeName = "rat king";
+		this.stats.setMaxHP(10);
+		this.stats.setMaxAP(3);
+		this.stats.setAPRegen(50);
+		this.stats.setAttack(2);
+		this.stats.setSpeed(120);
+		this.aggressiveToPlayerIfNear = false;
+		this.aggressiveNearDistance = 10;
+		this.basePoint = this.position;
+		this.maxWanderDistance = 5;
+	}
+	,postDungeonInit: function() {
+		var _g = 0;
+		var _g1 = this.world.get_creatures();
+		while(_g < _g1.length) {
+			var worldCreature = _g1[_g];
+			++_g;
+			if(js_Boot.__instanceof(worldCreature,worldElements_creatures_Rat) && worldCreature != this) {
+				worldCreature.leaderCreatures.push(this);
+			}
+		}
+	}
+	,__class__: worldElements_creatures_RatKing
+});
 var worldElements_creatures_Skeleton = function(world,position) {
 	worldElements_creatures_Creature.call(this,world,position);
 };
@@ -4171,7 +4449,7 @@ worldElements_creatures_Vampire.prototype = $extend(worldElements_creatures_Crea
 		this.color = 16711680;
 		this.character = "v";
 		this.creatureTypeName = "vampire";
-		this.stats.setMaxHP(18);
+		this.stats.setMaxHP(17);
 		this.stats.setMaxAP(9);
 		this.stats.setAPRegen(5);
 		this.stats.setAttack(5);
@@ -4200,9 +4478,9 @@ worldElements_creatures_Wolf.prototype = $extend(worldElements_creatures_Creatur
 		this.color = 11249571;
 		this.character = "w";
 		this.creatureTypeName = "wolf";
-		this.stats.setMaxHP(15);
+		this.stats.setMaxHP(12);
 		this.stats.setMaxAP(6);
-		this.stats.setAttack(4);
+		this.stats.setAttack(5);
 		this.stats.setSpeed(100);
 		this.actions.push(new worldElements_creatures_actions_Dash(this,true));
 		this.creatureAttackVerb = "bit";
@@ -4363,6 +4641,9 @@ worldElements_creatures_actions_AttackCalculator.basicAttack = function(attackin
 	var attackPartFloat = attackingCreature.stats.attack;
 	attackPartFloat = common_Random.getFloat(Math.ceil(attackPartFloat / 2),attackPartFloat + 1);
 	attackPartFloat *= attackMultiplier;
+	if(attackingCreature.hasSimpleStatusModifier(worldElements_creatures_statusModifiers_SimpleStatusModifier.HalfDamageToRats) && js_Boot.__instanceof(attackedCreature,worldElements_creatures_Rat)) {
+		attackPartFloat *= 0.5;
+	}
 	var attackPart = Math.floor(attackPartFloat);
 	var defencePart = attackedCreature.stats.defence;
 	var isCritical = false;
@@ -4749,7 +5030,7 @@ worldElements_creatures_actions_StopTakeOver.prototype = $extend(worldElements_c
 	,__class__: worldElements_creatures_actions_StopTakeOver
 });
 var worldElements_creatures_actions_TakeOverEnemy = function(creature) {
-	this.turnLength = 11;
+	this.turnLength = 13;
 	worldElements_creatures_actions_DirectionAction.call(this,creature);
 	this.abilityName = "Mind Control";
 	this.abilityDescription = "Take over an enemy next to you. Make sure you're at least somewhat safe, as you won't be able to move your own body until you end the mind control. Also, you'll always lose mind control after " + (this.turnLength - 1) + " turns.";
@@ -4801,6 +5082,9 @@ worldElements_creatures_movement_Movement.prototype = {
 		return true;
 	}
 	,move: function(world,creature) {
+	}
+	,getAggresiveTo: function(world,creature) {
+		return [];
 	}
 	,moveInDirection: function(world,creature,direction) {
 		var newPosition = world.positionInDirection(creature.position,direction);
@@ -4868,6 +5152,22 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 				aggressiveToCreatures.push(worldCreature);
 			}
 		}
+		var _g2 = 0;
+		var _g11 = creature.leaderCreatures;
+		while(_g2 < _g11.length) {
+			var leader = _g11[_g2];
+			++_g2;
+			var leaderAggro = leader.movement.getAggresiveTo(world,leader);
+			var _g21 = 0;
+			while(_g21 < leaderAggro.length) {
+				var worldCreature1 = leaderAggro[_g21];
+				++_g21;
+				if(common_ArrayExtensions.contains(aggressiveToCreatures,worldCreature1) || worldCreature1 == creature) {
+					continue;
+				}
+				aggressiveToCreatures.push(worldCreature1);
+			}
+		}
 		return aggressiveToCreatures;
 	}
 	,move: function(world,creature) {
@@ -4912,14 +5212,27 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 				var wanderToOptions = world.pathfinder.find(creature.position,function(p) {
 					return world.noBlockingElementsAt(p,false);
 				},true);
+				if(creature.maxWanderDistance > -1) {
+					if(creature.basePoint == null) {
+						wanderToOptions = wanderToOptions.filter(function(wp) {
+							return wp.distance <= creature.maxWanderDistance;
+						});
+					} else {
+						wanderToOptions = wanderToOptions.filter(function(wp1) {
+							var _this = wp1.point;
+							var otherPoint = creature.basePoint;
+							return Math.abs(_this.x - otherPoint.x) + Math.abs(_this.y - otherPoint.y) <= creature.maxWanderDistance;
+						});
+					}
+				}
 				if(wanderToOptions.length > 0) {
 					creature.wanderTo = common_Random.fromArray(wanderToOptions).point;
 				}
 			}
 			if(creature.wanderTo != null) {
 				var wanderInfo = world.pathfinder.find(creature.position,function(p1) {
-					var otherPoint = creature.wanderTo;
-					if(p1.x == otherPoint.x && p1.y == otherPoint.y) {
+					var otherPoint1 = creature.wanderTo;
+					if(p1.x == otherPoint1.x && p1.y == otherPoint1.y) {
 						return world.noBlockingElementsAt(p1,false);
 					} else {
 						return false;
@@ -5127,7 +5440,7 @@ worldElements_creatures_statusEffects_Slowed.prototype = $extend(worldElements_c
 	}
 	,init: function() {
 		this.name = "Slowed";
-		this.goesAwayAfter = 20;
+		this.goesAwayAfter = 30;
 	}
 	,onTurn: function() {
 		if(this.goesAwayAfter <= 0) {
@@ -5177,13 +5490,16 @@ worldElements_creatures_statusEffects_SplitOnByGoblin.prototype = $extend(worldE
 	}
 	,__class__: worldElements_creatures_statusEffects_SplitOnByGoblin
 });
-var worldElements_creatures_statusModifiers_SimpleStatusModifier = { __ename__ : true, __constructs__ : ["Forgetfullness","WorseSight"] };
+var worldElements_creatures_statusModifiers_SimpleStatusModifier = { __ename__ : true, __constructs__ : ["Forgetfullness","WorseSight","HalfDamageToRats"] };
 worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness = ["Forgetfullness",0];
 worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness.toString = $estr;
 worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness.__enum__ = worldElements_creatures_statusModifiers_SimpleStatusModifier;
 worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight = ["WorseSight",1];
 worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight.toString = $estr;
 worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight.__enum__ = worldElements_creatures_statusModifiers_SimpleStatusModifier;
+worldElements_creatures_statusModifiers_SimpleStatusModifier.HalfDamageToRats = ["HalfDamageToRats",2];
+worldElements_creatures_statusModifiers_SimpleStatusModifier.HalfDamageToRats.toString = $estr;
+worldElements_creatures_statusModifiers_SimpleStatusModifier.HalfDamageToRats.__enum__ = worldElements_creatures_statusModifiers_SimpleStatusModifier;
 function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }

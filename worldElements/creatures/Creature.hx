@@ -19,6 +19,10 @@ class Creature extends WorldElement {
     public var creatureFullAttackVerb:String = "bite";
 
     public var attackedBy:Array<Creature> = [];
+    /**
+     *  Always attack creatures that have attacked leaders.
+     */
+    public var leaderCreatures:Array<Creature>;
 
     public var basicAttack:DirectionalAttack;
     public var actions:Array<CreatureAction>;
@@ -73,6 +77,8 @@ class Creature extends WorldElement {
      */
     public var aggressiveNearDistance = 2;
     public var wanderTo:Point = null;
+    public var basePoint:Point = null;
+    public var maxWanderDistance:Int = -1;
     public var canTakeItems:Bool = false;
     public var isUndead:Bool = false;
 
@@ -88,6 +94,7 @@ class Creature extends WorldElement {
         attackedBy = [];
         inventory = [];
         statusEffects = new Array<StatusEffect>();
+        leaderCreatures = [];
     }
 
     /**
@@ -206,6 +213,11 @@ class Creature extends WorldElement {
             if (world.player.ownBody != this) {
                 if (inventory.length != 0)
                     world.addElement(new worldElements.ItemOnFloor(world, position, inventory));
+            }
+            
+            //No longer a leader
+            for (creature in world.creatures) {
+                creature.leaderCreatures.remove(this);
             }
             return true;
         }

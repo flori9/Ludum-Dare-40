@@ -5,8 +5,8 @@ import worldElements.creatures.Creature;
 class Item extends worldElements.creatures.statusModifiers.StatusModifier {
     public var name(get, never):String;
     function get_name() return "";
-    public var aOrAn(get, never):String;
-    function get_aOrAn() return "a";
+    public var aOrAnOrThe(get, never):String;
+    function get_aOrAnOrThe() return "a";
     public var description(get, never):String;
     function get_description()
         return if (value != 0)
@@ -15,6 +15,8 @@ class Item extends worldElements.creatures.statusModifiers.StatusModifier {
             '';
     public var consumable(get, never):Bool;
     function get_consumable() return false;
+    public var useable(get, never):Bool;
+    function get_useable() return false;
     public var value(get, never):Int;
     function get_value() return 0;
     public var color(get, never):Int;

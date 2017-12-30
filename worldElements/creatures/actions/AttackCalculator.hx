@@ -12,6 +12,13 @@ class AttackCalculator {
         var attackPartFloat:Float = attackingCreature.stats.attack;
         attackPartFloat = Random.getFloat(Math.ceil(attackPartFloat / 2), attackPartFloat + 1);
         attackPartFloat *= attackMultiplier;
+        
+        //Half rat damage
+        //(todo: should be done differently, but this is easy for now)
+        if (attackingCreature.hasSimpleStatusModifier(HalfDamageToRats) && Std.is(attackedCreature, Rat)) {
+            attackPartFloat *= 0.5;
+        }
+        
         var attackPart = Math.floor(attackPartFloat);
 
         var defencePart = attackedCreature.stats.defence;

@@ -34,6 +34,15 @@ class Movement {
 
     }
 
+    /**
+     *  Returns the creatures the given creature is aggresive to
+     *  @param world The world
+     *  @param creature The creature
+     */
+    public function getAggresiveTo(world:World, creature:Creature) {
+        return [];
+    }
+
     public function moveInDirection(world:World, creature:Creature, direction:Direction) {
         var newPosition = world.positionInDirection(creature.position, direction);
         if (newPosition != null) {

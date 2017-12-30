@@ -1,13 +1,13 @@
 package worldElements.creatures.movement;
 
 class BasicMovement extends Movement {
-
     public function new() {
 
     }
 
-    public function getAggresiveTo(world:World, creature:Creature) {
+    public override function getAggresiveTo(world:World, creature:Creature) {
         var aggressiveToCreatures = creature.attackedBy.copy();
+        
         if ((creature.aggressiveToPlayer || (creature.aggressiveToPlayerIfNear
                 && creature.position.manhattanDistance(world.player.ownBody.position) <= creature.aggressiveNearDistance))
                 && !aggressiveToCreatures.contains(world.player.ownBody))
@@ -18,6 +18,17 @@ class BasicMovement extends Movement {
 
             if (worldCreature.makesCreatureAggressive(creature))
                 aggressiveToCreatures.push(worldCreature);
+        }
+
+        //Add any creatures leaders are aggresive to
+        for (leader in creature.leaderCreatures) {
+            var leaderAggro = leader.movement.getAggresiveTo(world, leader);
+            for (worldCreature in leaderAggro) {
+                if (aggressiveToCreatures.contains(worldCreature) || worldCreature == creature)
+                    continue;
+
+                aggressiveToCreatures.push(worldCreature);
+            }
         }
 
         return aggressiveToCreatures;
@@ -58,6 +69,17 @@ class BasicMovement extends Movement {
         } else {
             if (creature.wanderTo == null) {
                 var wanderToOptions = world.pathfinder.find(creature.position, function(p) return world.noBlockingElementsAt(p, false), true);
+                
+                //Maximum wander distance from base or current point
+                if (creature.maxWanderDistance > -1) {
+                    if (creature.basePoint == null)
+                        wanderToOptions = wanderToOptions.filter(function (wp)
+                            return wp.distance <= creature.maxWanderDistance);
+                    else
+                        wanderToOptions = wanderToOptions.filter(function (wp)
+                            return wp.point.manhattanDistance(creature.basePoint) <= creature.maxWanderDistance);
+                }
+                
                 if (wanderToOptions.length > 0)
                     creature.wanderTo = common.Random.fromArray(wanderToOptions).point;
             }

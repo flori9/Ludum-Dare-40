@@ -155,7 +155,19 @@ class Player extends Focusable {
     }
 
     function showInventory() {
-        var inventoryMenuItems = [for (item in controllingBody.inventory) new ui.MenuItem(item.name, item.description, function() {})];
+        var inventoryMenuItems = [for (item in controllingBody.inventory) new ui.MenuItem(item.name, item.description, function() {
+            if (item.useable) {
+                //Use the item!
+                game.focus(this, false);
+                game.beforeStep();
+                item.use(controllingBody);
+                controllingBody.hasMoved = true;
+                game.afterStep();
+                if (item.consumable) {
+                    controllingBody.inventory.remove(item);
+                }
+            }
+        })];
         var menu:ui.Menu;
         inventoryMenuItems.push(new ui.MenuItem("Close Menu", "", function() menu.close()));
         menu = new ui.Menu(game.drawer, keyboard, world, game, this, "Inventory", inventoryMenuItems, inventoryMenuKey);

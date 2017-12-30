@@ -34,8 +34,18 @@ class Game {
         world.info = info;
         
         world.generateLevel();
-
+        
+        var skips = 0;
+        
+        for (i in 0...skips)
+            world.nextFloor();
+        
         drawWorld();
+        
+        if (skips == 0) {
+            info.addInfo("Welcome to the dungeon! Use the arrow keys to move and the mouse to examine things.");
+            info.processInfo(drawer);
+        }
     }
 
     public function restartGame() {
