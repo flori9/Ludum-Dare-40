@@ -47,13 +47,20 @@ class BasicMovement extends Movement {
 
         var nearestTarget = null, nearestTargetInfo = null, nearestTargetDistance = 1000000;
 
+        var isBlinded = creature.hasSimpleStatusModifier(Blinded);
+        //If we're blinded, we only attack if we can see the creature right now
+        var currentFollowTimeWithoutSee = isBlinded ? 0 : creature.followTimeWithoutSee;
+        
         for (toTarget in toTargets) {
             var target:Creature = cast world.elementsAtPosition(toTarget.point).filter(isAggressiveToThis)[0];
             var canSee = world.pathfinder.isVisible(creature.position, target.position);
+            //If we're blinded, we can see much less far
+            if (isBlinded && toTarget.distance > 1)
+                canSee = false;
             if (canSee)
                 creature.lastSeenCreature[target] = 0;
 
-            if (creature.lastSeenCreature[target] <= creature.followTimeWithoutSee) {
+            if (creature.lastSeenCreature[target] <= currentFollowTimeWithoutSee && toTarget.distance < nearestTargetDistance) {
                 nearestTarget = target;
                 nearestTargetInfo = toTarget;
                 nearestTargetDistance = toTarget.distance;

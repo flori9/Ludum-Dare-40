@@ -4,4 +4,5 @@ enum SimpleStatusModifier {
     Forgetfullness;
     WorseSight;
     HalfDamageToRats;
+    Blinded;
 }

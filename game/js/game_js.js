@@ -358,7 +358,7 @@ var Game = function(application,stage,gameRect) {
 	this.info = new ui_InfoDisplay(this.keyboard,this.world,this,this.player);
 	this.world.info = this.info;
 	this.world.generateLevel();
-	var skips = 0;
+	var skips = 2;
 	var _g1 = 0;
 	var _g = skips;
 	while(_g1 < _g) {
@@ -1481,8 +1481,9 @@ World.prototype = {
 		}
 		var elemAt = _g;
 		var playerIsForgetfull = this.player.controllingBody.hasSimpleStatusModifier(worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness) || this.player.ownBody.hasSimpleStatusModifier(worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness);
+		var blinded = this.player.controllingBody.hasSimpleStatusModifier(worldElements_creatures_statusModifiers_SimpleStatusModifier.Blinded);
 		var worseSight = this.player.controllingBody.hasSimpleStatusModifier(worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight);
-		var maxSeeDistance = worseSight ? 5.01 : 100;
+		var maxSeeDistance = blinded ? 1.01 : worseSight ? 5.01 : 100;
 		var centerX = this.player.controllingBody.position.x;
 		var centerY = this.player.controllingBody.position.y;
 		var _g11 = 0;
@@ -2470,7 +2471,7 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		var roomsStillToFill = getUnusedRoomsRandomOrder();
 		var addedTreasure = false;
 		var addedFountainIfNeeded = this.floor != 3 && this.floor != 5;
-		var addedSpecialIfNeeded = this.floor != 4;
+		var addedSpecialIfNeeded = this.floor != 4 && this.floor != 3;
 		var maxEntrances = 1;
 		while(!addedTreasure || !addedFountainIfNeeded) {
 			var _g110 = 0;
@@ -2523,7 +2524,7 @@ dungeonGeneration_DungeonGenerator.prototype = {
 				if(this.floor == 1) {
 					this.world.addElement(new worldElements_Sign(this.world,this.anyEmptyPositionInRoom(room6,true),"Move into monsters to attack them. Press Shift to use abilities."));
 				} else if(this.floor == 2) {
-					this.world.addElement(new worldElements_Sign(this.world,this.anyEmptyPositionInRoom(room6,true),"Press '.' (Dot) to wait a turn. Press I to view your inventory. Press E to view your status effects."));
+					this.world.addElement(new worldElements_Sign(this.world,this.anyEmptyPositionInRoom(room6,true),"Press . (Dot) to wait a turn, I to view your inventory and E for your status effects."));
 				}
 				break;
 			case 1:
@@ -2576,15 +2577,28 @@ dungeonGeneration_DungeonGenerator.prototype = {
 						wolf.basePoint = wolf.position;
 						wolf.maxWanderDistance = 5;
 					}
+				} else if(this.floor == 3) {
+					var skeletonMage = new worldElements_creatures_SkeletonMage(this.world,this.anyEmptyPositionInRoom(room6));
+					this.world.addElement(skeletonMage);
+					skeletonMage.basePoint = skeletonMage.position;
+					skeletonMage.maxWanderDistance = 7;
+					var _g115 = 0;
+					while(_g115 < 2) {
+						var i8 = _g115++;
+						var skeleton = new worldElements_creatures_Skeleton(this.world,this.anyEmptyPositionInRoom(room6));
+						this.world.addElement(skeleton);
+						skeleton.basePoint = skeleton.position;
+						skeleton.maxWanderDistance = 8;
+					}
 				}
 				break;
 			}
 		}
-		var _g115 = 0;
+		var _g116 = 0;
 		var _g27 = this.world.elements;
-		while(_g115 < _g27.length) {
-			var element = _g27[_g115];
-			++_g115;
+		while(_g116 < _g27.length) {
+			var element = _g27[_g116];
+			++_g116;
 			element.postDungeonInit();
 		}
 		return basicDungeon;
@@ -2628,6 +2642,7 @@ dungeonGeneration_DungeonGenerator.prototype = {
 		if(this.floor >= 4) {
 			creatureOptions.push(vampire);
 			creatureOptions.push(wolf);
+			creatureOptions.push({ type : worldElements_creatures_SkeletonMage, points : 3});
 		}
 		if(this.floor >= 5) {
 			creatureOptions.push(flyingEye);
@@ -4020,6 +4035,19 @@ worldElements_creatures_Creature.prototype = $extend(worldElements_WorldElement.
 				mods.push(se);
 			}
 		}
+		var _g4 = 0;
+		var _g11 = this.statusEffects;
+		while(_g4 < _g11.length) {
+			var se1 = _g11[_g4];
+			++_g4;
+			var _g21 = 0;
+			var _g31 = se1.get_modifiersWhileActive();
+			while(_g21 < _g31.length) {
+				var se2 = _g31[_g21];
+				++_g21;
+				mods.push(se2);
+			}
+		}
 		return mods;
 	}
 	,hasSimpleStatusModifier: function(mod) {
@@ -4436,6 +4464,31 @@ worldElements_creatures_Skeleton.prototype = $extend(worldElements_creatures_Cre
 		this.isUndead = true;
 	}
 	,__class__: worldElements_creatures_Skeleton
+});
+var worldElements_creatures_SkeletonMage = function(world,position) {
+	worldElements_creatures_Skeleton.call(this,world,position);
+};
+worldElements_creatures_SkeletonMage.__name__ = true;
+worldElements_creatures_SkeletonMage.__super__ = worldElements_creatures_Skeleton;
+worldElements_creatures_SkeletonMage.prototype = $extend(worldElements_creatures_Skeleton.prototype,{
+	init: function() {
+		worldElements_creatures_Skeleton.prototype.init.call(this);
+		this.color = 12753368;
+		this.creatureTypeName = "skeleton mage";
+		this.stats.setMaxHP(12);
+		this.stats.setMaxAP(7);
+		this.stats.setAttack(4);
+		this.stats.setSpeed(66);
+		this.actions = [];
+		this.actions.push(new worldElements_creatures_actions_RangedSpecialDirectionalAttack(this,1.1,"{attacker} pushed a magical bolt to {target}. It was a critical hit for {damage} damage.","{attacker} pushed a magical bolt to {target} for {damage} damage.","{attacker} pushed a magical bolt to {target}, {butDefended}","Throw Bone","Push a magical bolt in a direction, dealing damage from up to six squares away from an enemy.",3,6));
+		this.actions.push(new worldElements_creatures_actions_AfflictStatusEffect(this,worldElements_creatures_statusEffects_Blinded,function(c) {
+			return new worldElements_creatures_statusEffects_Blinded(c);
+		},"{subject} temporarily blinded {object} with a magical flash of light!",3,"Flash of Light","Blind an enemy next to you."));
+		this.aggressiveToPlayerIfNear = true;
+		this.aggressiveNearDistance = 8;
+		this.followTimeWithoutSee = 5;
+	}
+	,__class__: worldElements_creatures_SkeletonMage
 });
 var worldElements_creatures_Vampire = function(world,position) {
 	worldElements_creatures_Creature.call(this,world,position);
@@ -5188,16 +5241,21 @@ worldElements_creatures_movement_BasicMovement.prototype = $extend(worldElements
 		var nearestTarget = null;
 		var nearestTargetInfo = null;
 		var nearestTargetDistance = 1000000;
+		var isBlinded = creature.hasSimpleStatusModifier(worldElements_creatures_statusModifiers_SimpleStatusModifier.Blinded);
+		var currentFollowTimeWithoutSee = isBlinded ? 0 : creature.followTimeWithoutSee;
 		var _g = 0;
 		while(_g < toTargets.length) {
 			var toTarget = toTargets[_g];
 			++_g;
 			var target = world.elementsAtPosition(toTarget.point).filter(isAggressiveToThis)[0];
 			var canSee = world.pathfinder.isVisible(creature.position,target.position);
+			if(isBlinded && toTarget.distance > 1) {
+				canSee = false;
+			}
 			if(canSee) {
 				creature.lastSeenCreature.set(target,0);
 			}
-			if(creature.lastSeenCreature.h[target.__id__] <= creature.followTimeWithoutSee) {
+			if(creature.lastSeenCreature.h[target.__id__] <= currentFollowTimeWithoutSee && toTarget.distance < nearestTargetDistance) {
 				nearestTarget = target;
 				nearestTargetInfo = toTarget;
 				nearestTargetDistance = toTarget.distance;
@@ -5388,10 +5446,43 @@ var worldElements_creatures_statusEffects_StatusEffect = function(creature) {
 worldElements_creatures_statusEffects_StatusEffect.__name__ = true;
 worldElements_creatures_statusEffects_StatusEffect.__super__ = worldElements_creatures_statusModifiers_StatusModifier;
 worldElements_creatures_statusEffects_StatusEffect.prototype = $extend(worldElements_creatures_statusModifiers_StatusModifier.prototype,{
-	getText: function() {
+	get_modifiersWhileActive: function() {
+		return [];
+	}
+	,getText: function() {
 		return "";
 	}
 	,__class__: worldElements_creatures_statusEffects_StatusEffect
+});
+var worldElements_creatures_statusEffects_Blinded = function(creature) {
+	worldElements_creatures_statusEffects_StatusEffect.call(this,creature);
+};
+worldElements_creatures_statusEffects_Blinded.__name__ = true;
+worldElements_creatures_statusEffects_Blinded.__super__ = worldElements_creatures_statusEffects_StatusEffect;
+worldElements_creatures_statusEffects_Blinded.prototype = $extend(worldElements_creatures_statusEffects_StatusEffect.prototype,{
+	get_modifiersWhileActive: function() {
+		return [worldElements_creatures_statusModifiers_SimpleStatusModifier.Blinded];
+	}
+	,init: function() {
+		this.name = "Blinded";
+		this.goesAwayAfter = 15;
+	}
+	,onTurn: function() {
+		if(this.goesAwayAfter <= 0) {
+			if(this.creature.isInterestingForPlayer()) {
+				var tmp = this.creature.world.info;
+				var str = "" + this.creature.getNameToUse() + " " + this.creature.getWereOrWas() + " no longer blinded.";
+				tmp.addInfo(str.length == 0 ? str : str.charAt(0).toUpperCase() + HxOverrides.substr(str,1,null));
+			}
+			this.ended = true;
+		} else {
+			this.goesAwayAfter -= 1;
+		}
+	}
+	,getText: function() {
+		return "You can see much less far. Ends after " + this.goesAwayAfter + " turns.";
+	}
+	,__class__: worldElements_creatures_statusEffects_Blinded
 });
 var worldElements_creatures_statusEffects_Poison = function(creature) {
 	worldElements_creatures_statusEffects_StatusEffect.call(this,creature);
@@ -5490,7 +5581,7 @@ worldElements_creatures_statusEffects_SplitOnByGoblin.prototype = $extend(worldE
 	}
 	,__class__: worldElements_creatures_statusEffects_SplitOnByGoblin
 });
-var worldElements_creatures_statusModifiers_SimpleStatusModifier = { __ename__ : true, __constructs__ : ["Forgetfullness","WorseSight","HalfDamageToRats"] };
+var worldElements_creatures_statusModifiers_SimpleStatusModifier = { __ename__ : true, __constructs__ : ["Forgetfullness","WorseSight","HalfDamageToRats","Blinded"] };
 worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness = ["Forgetfullness",0];
 worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness.toString = $estr;
 worldElements_creatures_statusModifiers_SimpleStatusModifier.Forgetfullness.__enum__ = worldElements_creatures_statusModifiers_SimpleStatusModifier;
@@ -5500,6 +5591,9 @@ worldElements_creatures_statusModifiers_SimpleStatusModifier.WorseSight.__enum__
 worldElements_creatures_statusModifiers_SimpleStatusModifier.HalfDamageToRats = ["HalfDamageToRats",2];
 worldElements_creatures_statusModifiers_SimpleStatusModifier.HalfDamageToRats.toString = $estr;
 worldElements_creatures_statusModifiers_SimpleStatusModifier.HalfDamageToRats.__enum__ = worldElements_creatures_statusModifiers_SimpleStatusModifier;
+worldElements_creatures_statusModifiers_SimpleStatusModifier.Blinded = ["Blinded",3];
+worldElements_creatures_statusModifiers_SimpleStatusModifier.Blinded.toString = $estr;
+worldElements_creatures_statusModifiers_SimpleStatusModifier.Blinded.__enum__ = worldElements_creatures_statusModifiers_SimpleStatusModifier;
 function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }

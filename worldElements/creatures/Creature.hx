@@ -49,6 +49,10 @@ class Creature extends WorldElement {
             for (se in it.modifiersWhileInInventory)
                 mods.push(se);
         }
+        for (se in statusEffects) {
+            for (se in se.modifiersWhileActive)
+                mods.push(se);
+        }
         return mods;
     }
 

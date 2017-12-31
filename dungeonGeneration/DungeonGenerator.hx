@@ -22,6 +22,7 @@ class DungeonGenerator {
     var floor:Int;
 
     static inline var ratKingFloor = 2;
+    static inline var skeletonMageFloor = 3;
     static inline var wolfLairFloor = 4;
 
     public function new(world:World, floor:Int = 1) {
@@ -294,7 +295,7 @@ class DungeonGenerator {
         //Find a room for treasure and maybe one for fountain, with normally only one entrance
         var roomsStillToFill = getUnusedRoomsRandomOrder();
         var addedTreasure = false, addedFountainIfNeeded = floor != 3 && floor != 5,
-            addedSpecialIfNeeded = floor != wolfLairFloor, maxEntrances = 1;
+            addedSpecialIfNeeded = floor != wolfLairFloor && floor != skeletonMageFloor, maxEntrances = 1;
         while (! addedTreasure || ! addedFountainIfNeeded) {
             for (room in roomsStillToFill) {
                 var entrances = 0;
@@ -359,6 +360,20 @@ class DungeonGenerator {
                             world.addElement(wolf);
                             wolf.basePoint = wolf.position;
                             wolf.maxWanderDistance = 5;
+                        }
+                    } else if (floor == skeletonMageFloor) {
+                        //A skeleton mage and some skeletons
+                        var skeletonMage = new SkeletonMage(world, anyEmptyPositionInRoom(room));
+                        world.addElement(skeletonMage);
+                        skeletonMage.basePoint = skeletonMage.position;
+                        skeletonMage.maxWanderDistance = 7;
+                        
+                        //Spawn some skeletons near it, too
+                        for (i in 0...2) {
+                            var skeleton = new Skeleton(world, anyEmptyPositionInRoom(room));
+                            world.addElement(skeleton);
+                            skeleton.basePoint = skeleton.position;
+                            skeleton.maxWanderDistance = 8;
                         }
                     }
                 case End:
@@ -425,6 +440,7 @@ class DungeonGenerator {
         if (floor >= 4) {
             creatureOptions.push(vampire);
             creatureOptions.push(wolf);
+            creatureOptions.push({type: SkeletonMage, points: 4});
         }
 
         if (floor >= 5) {

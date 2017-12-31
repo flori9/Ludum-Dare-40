@@ -179,8 +179,9 @@ class World {
 
         var playerIsForgetfull = player.controllingBody.hasSimpleStatusModifier(Forgetfullness) ||
             player.ownBody.hasSimpleStatusModifier(Forgetfullness);
+        var blinded = player.controllingBody.hasSimpleStatusModifier(Blinded);
         var worseSight = player.controllingBody.hasSimpleStatusModifier(WorseSight);
-        var maxSeeDistance = worseSight ? 5.01 : 100;
+        var maxSeeDistance = blinded ? 1.01 : (worseSight ? 5.01 : 100);
 
         var centerX = player.controllingBody.position.x, centerY = player.controllingBody.position.y;
 

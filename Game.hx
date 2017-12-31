@@ -35,7 +35,7 @@ class Game {
         
         world.generateLevel();
         
-        var skips = 0;
+        var skips = 2;
         
         for (i in 0...skips)
             world.nextFloor();
